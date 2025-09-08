@@ -1,0 +1,53 @@
+# 编译产物
+build/
+bin/
+lib/
+*.o
+*.so
+*.a
+*.exe
+
+# 自动生成的解析器文件
+src/parser/yacc.tab.cpp
+src/parser/yacc.tab.h
+src/parser/lex.yy.cpp
+src/parser/lex.yy.h
+*.tab.cpp
+*.tab.h
+*.yy.cpp
+*.yy.h
+
+# CMake文件
+CMakeCache.txt
+CMakeFiles/
+.cmake/
+
+# 临时文件
+temp/
+output.txt
+*.tmp
+*.log
+
+# IDE文件
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 大文件
+*.zip
+*.tar.gz
+*.tgz
+
+.git
+src/test/performance_test/table_data/
+
+rmdb_client/*
+!rmdb_client/CMakeLists.txt
+!rmdb_client/main.cpp
+!rmdb_client/.DS_Store
+*.md

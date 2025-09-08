@@ -1,0 +1,9 @@
+# Index tests
+add_executable(b_plus_tree_insert_test b_plus_tree_insert_test.cpp)
+target_link_libraries(b_plus_tree_insert_test gtest_main storage record index system transaction)
+
+add_executable(b_plus_tree_delete_test b_plus_tree_delete_test.cpp)
+target_link_libraries(b_plus_tree_delete_test gtest_main storage record index system transaction)
+
+add_executable(b_plus_tree_concurrent_test b_plus_tree_concurrent_test.cpp)
+target_link_libraries(b_plus_tree_concurrent_test gtest_main storage record index system transaction)
