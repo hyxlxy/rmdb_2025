@@ -14,7 +14,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/config.h"
 #include "executor_abstract.h"
 
-// 普通执行器
+// 普通执行器（现在都支持MVCC）
 #include "executor_seq_scan.h"
 #include "executor_insert.h"
 #include "executor_update.h"
@@ -23,15 +23,9 @@ See the Mulan PSL v2 for more details. */
 #include "executor_nestedloop_join.h"
 #include "executor_projection.h"
 
-// MVCC执行器
-#include "mvcc_executor_seq_scan.h"
-#include "mvcc_executor_insert.h"
-#include "mvcc_executor_update.h"
-#include "mvcc_executor_delete.h"
-
 /**
  * @brief 执行器工厂类
- * 根据MVCC配置选择使用普通执行器还是MVCC执行器
+ * 创建统一的执行器（都支持MVCC）
  */
 class ExecutorFactory {
 public:
@@ -44,13 +38,7 @@ public:
         std::vector<Condition> conds,
         Context* context) {
 
-        if (ENABLE_MVCC && context != nullptr && context->txn_ != nullptr) {
-            // 使用MVCC版本
-            return std::make_unique<MVCCSeqScanExecutor>(sm_manager, tab_name, std::move(conds), context);
-        } else {
-            // 使用普通版本
-            return std::make_unique<SeqScanExecutor>(sm_manager, tab_name, std::move(conds), context);
-        }
+        return std::make_unique<SeqScanExecutor>(sm_manager, tab_name, std::move(conds), context);
     }
 
     /**
@@ -62,13 +50,7 @@ public:
         std::vector<Value> values,
         Context* context) {
 
-        if (ENABLE_MVCC && context != nullptr && context->txn_ != nullptr) {
-            // 使用MVCC版本
-            return std::make_unique<MVCCInsertExecutor>(sm_manager, tab_name, std::move(values), context);
-        } else {
-            // 使用普通版本
-            return std::make_unique<InsertExecutor>(sm_manager, tab_name, std::move(values), context);
-        }
+        return std::make_unique<InsertExecutor>(sm_manager, tab_name, std::move(values), context);
     }
 
     /**
@@ -82,13 +64,7 @@ public:
         std::vector<Rid> rids,
         Context* context) {
 
-        if (ENABLE_MVCC && context != nullptr && context->txn_ != nullptr) {
-            // 使用MVCC版本
-            return std::make_unique<MVCCUpdateExecutor>(sm_manager, tab_name, std::move(set_clauses), std::move(conds), std::move(rids), context);
-        } else {
-            // 使用普通版本
-            return std::make_unique<UpdateExecutor>(sm_manager, tab_name, std::move(set_clauses), std::move(conds), std::move(rids), context);
-        }
+        return std::make_unique<UpdateExecutor>(sm_manager, tab_name, std::move(set_clauses), std::move(conds), std::move(rids), context);
     }
 
     /**
@@ -101,13 +77,7 @@ public:
         std::vector<Rid> rids,
         Context* context) {
 
-        if (ENABLE_MVCC && context != nullptr && context->txn_ != nullptr) {
-            // 使用MVCC版本
-            return std::make_unique<MVCCDeleteExecutor>(sm_manager, tab_name, std::move(conds), std::move(rids), context);
-        } else {
-            // 使用普通版本
-            return std::make_unique<DeleteExecutor>(sm_manager, tab_name, std::move(conds), std::move(rids), context);
-        }
+        return std::make_unique<DeleteExecutor>(sm_manager, tab_name, std::move(conds), std::move(rids), context);
     }
 
     /**

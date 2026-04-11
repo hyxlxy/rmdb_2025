@@ -33,10 +33,14 @@ class SchemaManager:
             schema_sql = f.read()
 
         try:
+            # Split SQL into individual statements and execute them one by one
+            statements = [stmt.strip() for stmt in schema_sql.split(';') if stmt.strip()]
             with self.db.get_cursor() as cursor:
-                cursor.executescript(schema_sql)
+                for statement in statements:
+                    if statement:
+                        cursor.execute(statement)
                 logger.info("TPC-C schema created successfully")
-        except sqlite3.Error as e:
+        except Exception as e:
             logger.error(f"Failed to create schema: {e}")
             raise
 
@@ -52,10 +56,18 @@ class SchemaManager:
             indexes_sql = f.read()
 
         try:
+            # Split SQL into individual statements and execute them one by one
+            statements = [stmt.strip() for stmt in indexes_sql.split(';') if stmt.strip()]
             with self.db.get_cursor() as cursor:
-                cursor.executescript(indexes_sql)
+                for statement in statements:
+                    if statement:
+                        try:
+                            cursor.execute(statement)
+                        except Exception as stmt_e:
+                            logger.warning(f"Failed to create index '{statement}': {stmt_e}")
+                            # Continue with other indexes
                 logger.info("TPC-C indexes created successfully")
-        except sqlite3.Error as e:
+        except Exception as e:
             logger.error(f"Failed to create indexes: {e}")
             raise
 
@@ -76,10 +88,7 @@ class SchemaManager:
         try:
             with self.db.get_cursor() as cursor:
                 for table in required_tables:
-                    cursor.execute(
-                        "SELECT * FROM ?",
-                        (table,),
-                    )
+                    cursor.execute(f"SELECT * FROM {table} LIMIT 1")
                     if not cursor.fetchone():
                         logger.error(f"Required table '{table}' not found")
                         return False

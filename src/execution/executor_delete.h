@@ -13,11 +13,11 @@ See the Mulan PSL v2 for more details. */
 
 #include "execution_defs.h"
 #include "execution_manager.h"
-#include "executor_abstract.h"
+#include "mvcc_executor_base.h"
 #include "index/ix.h"
 #include "system/sm.h"
 
-class DeleteExecutor : public AbstractExecutor
+class DeleteExecutor : public MVCCExecutorBase
 {
 private:
     SmManager *sm_manager_;
@@ -47,7 +47,7 @@ public:
     {
         for (auto &rid : rids_)
         {
-            auto &&rec = fh_->get_record(rid, context_);
+            auto &&rec = get_record_mvcc(fh_, rid, context_, sm_manager_);
             // 如果有索引，则必然是唯一索引
             for (auto &[index_name, index] : tab_.indexes)
             {

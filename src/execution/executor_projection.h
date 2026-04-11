@@ -11,11 +11,11 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 #include "execution_defs.h"
 #include "execution_manager.h"
-#include "executor_abstract.h"
+#include "mvcc_executor_base.h"
 #include "index/ix.h"
 #include "system/sm.h"
 
-class ProjectionExecutor : public AbstractExecutor
+class ProjectionExecutor : public MVCCExecutorBase
 {
 private:
     std::unique_ptr<AbstractExecutor> prev_; // 投影节点的儿子节点

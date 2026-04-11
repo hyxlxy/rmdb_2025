@@ -13,7 +13,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "execution_defs.h"
 #include "execution_manager.h"
-#include "executor_abstract.h"
+#include "mvcc_executor_base.h"
 #include "index/ix.h"
 #include "system/sm.h"
 #include "expression_evaluator.h"
@@ -22,7 +22,7 @@ See the Mulan PSL v2 for more details. */
 #include "tpcc_runtime_coordinator.h"
 #include "tpcc_index_utils.h"
 
-class UpdateExecutor : public AbstractExecutor
+class UpdateExecutor : public MVCCExecutorBase
 {
 private:
     TabMeta tab_;
@@ -40,7 +40,7 @@ private:
      */
     void update_record_tpcc_optimized(const Rid& rid) {
         // 直接获取记录，减少拷贝
-        auto record = fh_->get_record(rid, context_);
+        auto record = get_record_mvcc(fh_, rid, context_, sm_manager_);
 
         // 批量更新所有字段
         for (const auto& set : set_clauses_) {
@@ -170,7 +170,7 @@ private:
 
         for (auto &rid : rids_) {
             // 获取当前记录
-            auto updated_record = fh_->get_record(rid, context_);
+            auto updated_record = get_record_mvcc(fh_, rid, context_, sm_manager_);
             auto old_record = std::make_unique<RmRecord>(*updated_record);
 
             // 找到d_next_o_id字段的元数据
@@ -314,7 +314,7 @@ private:
 
         // 执行标准的district更新逻辑，但在协调器的保护下
         for (auto &rid : rids_) {
-            auto updated_record = fh_->get_record(rid, context_);
+            auto updated_record = get_record_mvcc(fh_, rid, context_, sm_manager_);
             auto old_record = std::make_unique<RmRecord>(*updated_record);
 
             // 应用更新
@@ -350,7 +350,7 @@ private:
             // 在锁内修正策略可配置：默认不强制修正，遵循 SQL 赋值；必要时开启 enforce_dnext_fix
             if (TPCCRuntimeConfig::enforce_dnext_fix.load()) {
                 for (auto &rid_fix : rids_) {
-                    auto rec_fix = fh_->get_record(rid_fix, context_);
+                    auto rec_fix = get_record_mvcc(fh_, rid_fix, context_, sm_manager_);
                     auto &dtab = tab_;
                     int w_id_fix = *(int *)(rec_fix->data + dtab.get_col("d_w_id")->offset);
                     int d_id_fix = *(int *)(rec_fix->data + dtab.get_col("d_id")->offset);
@@ -395,7 +395,7 @@ public:
         for (auto &rid : rids_)
         {
             // **关键修复：获取记录后立即应用所有更新，确保原子性**
-            auto updated_record = fh_->get_record(rid, context_);
+            auto updated_record = get_record_mvcc(fh_, rid, context_, sm_manager_);
             auto old_record = std::make_unique<RmRecord>(*updated_record);
 
             for (auto &set : set_clauses_)

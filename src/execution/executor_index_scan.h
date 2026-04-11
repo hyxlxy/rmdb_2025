@@ -20,7 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include "index/ix.h"
 #include "system/sm.h"
 
-class IndexScanExecutor : public AbstractExecutor
+class IndexScanExecutor : public MVCCExecutorBase
 {
 private:
     SmManager *sm_manager_;
@@ -268,7 +268,7 @@ public:
         {
             try {
                 rid_ = scan_->rid();
-                rm_record_ = fh_->get_record(rid_, context_);
+                rm_record_ = get_record_mvcc(fh_, rid_, context_, sm_manager_);
                 if (cmp_conds(rm_record_.get(), fed_conds_, cols_))
                 {
                     break;
@@ -296,7 +296,7 @@ public:
         {
             try {
                 rid_ = scan_->rid();
-                rm_record_ = fh_->get_record(rid_, context_);
+                rm_record_ = get_record_mvcc(fh_, rid_, context_, sm_manager_);
                 if (cmp_conds(rm_record_.get(), fed_conds_, cols_))
                 {
                     break;

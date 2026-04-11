@@ -12,11 +12,11 @@ See the Mulan PSL v2 for more details. */
 
 #include "execution_defs.h"
 #include "execution_manager.h"
-#include "executor_abstract.h"
+#include "mvcc_executor_base.h"
 #include "index/ix.h"
 #include "system/sm.h"
 
-class SeqScanExecutor : public AbstractExecutor {
+class SeqScanExecutor : public MVCCExecutorBase {
    private:
     std::string tab_name_;              // 表的名称
     std::vector<Condition> conds_;      // scan的条件
@@ -55,7 +55,7 @@ class SeqScanExecutor : public AbstractExecutor {
             if (fed_conds_.empty()) {
                 return;
             }
-            auto rec = fh_->get_record(rid_, context_);
+            auto rec = get_record_mvcc(fh_, rid_, context_, sm_manager_);
             if (eval_conds(cols_, fed_conds_, rec.get()))
             {
                 return;
@@ -81,7 +81,7 @@ class SeqScanExecutor : public AbstractExecutor {
             if (fed_conds_.empty()) {
                 return;
             }
-            auto rec = fh_->get_record(rid_, context_);
+            auto rec = get_record_mvcc(fh_, rid_, context_, sm_manager_);
             if (eval_conds(cols_, fed_conds_, rec.get()))
             {
                 return;
@@ -92,7 +92,7 @@ class SeqScanExecutor : public AbstractExecutor {
 
     bool is_end() const override { return scan_ == nullptr || scan_->is_end(); }
 
-    std::unique_ptr<RmRecord> Next() override
+    std::unique_ptr<RmRecord> Next()
     {
         if (scan_ == nullptr)
         {
@@ -104,7 +104,7 @@ class SeqScanExecutor : public AbstractExecutor {
         }
         // 直接返回当前记录，不要在这里移动到下一个记录
         // 移动操作由外部的nextTuple()负责
-        auto record = fh_->get_record(rid_, context_);
+        auto record = get_record_mvcc(fh_, rid_, context_, sm_manager_);
         return record;
     }
 

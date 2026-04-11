@@ -2,7 +2,7 @@
 
 #include "execution_defs.h"
 #include "execution_manager.h"
-#include "executor_abstract.h"
+#include "mvcc_executor_base.h"
 #include "index/ix.h"
 #include "system/sm.h"
 #include "parser/ast.h"
@@ -14,7 +14,7 @@
  * 负责GROUP BY和HAVING的处理
  * 输出按组分组的数据，每组输出一个代表记录
  */
-class GroupExecutor : public AbstractExecutor
+class GroupExecutor : public MVCCExecutorBase
 {
 private:
     std::unique_ptr<AbstractExecutor> child_;

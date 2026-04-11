@@ -16,17 +16,12 @@ See the Mulan PSL v2 for more details. */
 #include "optimizer/plan.h"
 #include "execution/executor_abstract.h"
 #include "execution/executor_nestedloop_join.h"
-#include "execution/mvcc_executor_nestedloop_join.h"
 #include "execution/executor_projection.h"
 #include "execution/executor_seq_scan.h"
 #include "execution/executor_index_scan.h"
 #include "execution/executor_update.h"
 #include "execution/executor_insert.h"
 #include "execution/executor_delete.h"
-#include "execution/mvcc_executor_update.h"
-#include "execution/mvcc_executor_seq_scan.h"
-#include "execution/mvcc_executor_insert.h"
-#include "execution/mvcc_executor_delete.h"
 #include "execution/execution_sort.h"
 #include "execution/executor_aggregation_optimized.h"
 #include "execution/executor_group.h"
@@ -119,7 +114,7 @@ public:
                 // **简化选择逻辑：只在MVCC启用时使用MVCC执行器**
                 std::unique_ptr<AbstractExecutor> root;
                 if (ENABLE_MVCC) {
-                    root = std::make_unique<MVCCUpdateExecutor>(sm_manager_, x->tab_name_, x->set_clauses_, x->conds_, rids, context);
+                    root = std::make_unique<UpdateExecutor>(sm_manager_, x->tab_name_, x->set_clauses_, x->conds_, rids, context);
                 } else {
                     root = std::make_unique<UpdateExecutor>(sm_manager_, x->tab_name_, x->set_clauses_, x->conds_, rids, context);
                 }
@@ -137,7 +132,7 @@ public:
                 // **简化选择逻辑：只在MVCC启用时使用MVCC执行器**
                 std::unique_ptr<AbstractExecutor> root;
                 if (ENABLE_MVCC) {
-                    root = std::make_unique<MVCCDeleteExecutor>(sm_manager_, x->tab_name_, x->conds_, rids, context);
+                    root = std::make_unique<DeleteExecutor>(sm_manager_, x->tab_name_, x->conds_, rids, context);
                 } else {
                     root = std::make_unique<DeleteExecutor>(sm_manager_, x->tab_name_, x->conds_, rids, context);
                 }
@@ -150,7 +145,7 @@ public:
                 // **简化选择逻辑：只在MVCC启用时使用MVCC执行器**
                 std::unique_ptr<AbstractExecutor> root;
                 if (ENABLE_MVCC) {
-                    root = std::make_unique<MVCCInsertExecutor>(sm_manager_, x->tab_name_, x->values_, context);
+                    root = std::make_unique<InsertExecutor>(sm_manager_, x->tab_name_, x->values_, context);
                 } else {
                     root = std::make_unique<InsertExecutor>(sm_manager_, x->tab_name_, x->values_, context);
                 }
@@ -224,7 +219,7 @@ public:
             {
                 // **修复：只在有事务上下文时才使用MVCC执行器**
                 if (ENABLE_MVCC && context != nullptr && context->txn_ != nullptr) {
-                    return std::make_unique<MVCCSeqScanExecutor>(sm_manager_, x->tab_name_, x->conds_, context);
+                    return std::make_unique<SeqScanExecutor>(sm_manager_, x->tab_name_, x->conds_, context);
                 } else {
                     return std::make_unique<SeqScanExecutor>(sm_manager_, x->tab_name_, x->conds_, context);
                 }
@@ -239,16 +234,10 @@ public:
             std::unique_ptr<AbstractExecutor> left = convert_plan_executor(x->left_, context);
             std::unique_ptr<AbstractExecutor> right = convert_plan_executor(x->right_, context);
 
-            // **修复：在MVCC模式下使用MVCC版本的连接执行器**
-            if (ENABLE_MVCC && context != nullptr && context->txn_ != nullptr) {
-                std::unique_ptr<AbstractExecutor> join = std::make_unique<MVCCNestedLoopJoinExecutor>(
-                    std::move(left), std::move(right), std::move(x->conds_), x->type, context, sm_manager_);
-                return join;
-            } else {
-                std::unique_ptr<AbstractExecutor> join = std::make_unique<NestedLoopJoinExecutor>(
-                    std::move(left), std::move(right), std::move(x->conds_), x->type);
-                return join;
-            }
+            // 所有执行器现在都原生支持MVCC
+            std::unique_ptr<AbstractExecutor> join = std::make_unique<NestedLoopJoinExecutor>(
+                std::move(left), std::move(right), std::move(x->conds_), x->type);
+            return join;
         }
         else if (auto x = std::dynamic_pointer_cast<SortPlan>(plan))
         {

@@ -38,7 +38,7 @@ class RMDBCursor:
             parameters: Query parameters (will be substituted into SQL)
         """
         # Substitute parameters into SQL
-        query = sql + ";"
+        query = sql
 
         # 只在有参数时才进行替换
         if parameters:

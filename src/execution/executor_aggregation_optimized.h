@@ -2,7 +2,7 @@
 
 #include "execution_defs.h"
 #include "execution_manager.h"
-#include "executor_abstract.h"
+#include "mvcc_executor_base.h"
 #include "executor_group.h"
 #include "index/ix.h"
 #include "system/sm.h"
@@ -13,7 +13,7 @@
  * 
  * 专门处理聚合函数计算，接收来自GroupExecutor的分组数据
  */
-class OptimizedAggregationExecutor : public AbstractExecutor
+class OptimizedAggregationExecutor : public MVCCExecutorBase
 {
 private:
     std::unique_ptr<AbstractExecutor> child_;  // GroupExecutor

@@ -11,12 +11,12 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 #include "execution_defs.h"
 #include "execution_manager.h"
-#include "executor_abstract.h"
+#include "mvcc_executor_base.h"
 #include "index/ix.h"
 #include "system/sm.h"
 #include "parser/ast.h"
 
-class NestedLoopJoinExecutor : public AbstractExecutor
+class NestedLoopJoinExecutor : public MVCCExecutorBase
 {
 private:
     std::unique_ptr<AbstractExecutor> left_;  // 左儿子节点（需要join的表）

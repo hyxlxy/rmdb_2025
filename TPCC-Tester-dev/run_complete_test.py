@@ -19,7 +19,7 @@ if __name__ == "__main__":
         '--scale', '1',
         '--threads', '4',
         '--transactions', '100',
-        '--csv-data-dir', '/root/dbstart/rmdb/src/test/performance_test/table_data'
+        '--csv-data-dir', '/home/hxl/Desktop/rmdb_2025/src/test/performance_test/table_data'
     ]
     
     print("Starting complete TPC-C test...")

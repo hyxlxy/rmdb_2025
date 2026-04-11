@@ -42,8 +42,9 @@ class TpccExecutor:
         # Create schema
         self.schema_manager.create_schema()
 
-        # Create indexes
-        self.schema_manager.create_indexes()
+        # Skip index creation for now due to RMDB index bug
+        # self.schema_manager.create_indexes()
+        logger.info("Skipping index creation due to known issues")
 
         # We not check Validate schema now
         # if not self.schema_manager.validate_schema():

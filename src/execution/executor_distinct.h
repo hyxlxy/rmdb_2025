@@ -9,11 +9,11 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
 #pragma once
-#include "executor_abstract.h"
+#include "mvcc_executor_base.h"
 #include <set>
 #include <vector>
 
-class DistinctExecutor : public AbstractExecutor {
+class DistinctExecutor : public MVCCExecutorBase {
 private:
     std::unique_ptr<AbstractExecutor> child_;
     std::set<std::vector<std::string>> seen_records_;  // 用于去重

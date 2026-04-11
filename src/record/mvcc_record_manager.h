@@ -16,8 +16,6 @@ See the Mulan PSL v2 for more details. */
 #include "rm_file_handle.h"
 #include "../transaction/mvcc_defs.h"
 #include "../transaction/mvcc_manager.h"
-#include "../transaction/mvcc_visibility.h"
-#include "../transaction/mvcc_conflict_detector.h"
 #include "../common/context.h"
 
 /**
@@ -28,8 +26,6 @@ class MVCCRecordManager
 {
 private:
     std::unique_ptr<MVCCManager> mvcc_manager_;
-    std::unique_ptr<MVCCVisibilityManager> visibility_manager_;
-    std::unique_ptr<MVCCConflictDetector> conflict_detector_;
     // **修复：移除管理器级别的锁，依赖MVCC管理器内部的锁机制**
     // std::mutex manager_mutex_;
 
@@ -37,9 +33,6 @@ public:
     explicit MVCCRecordManager(TransactionManager *txn_manager)
     {
         mvcc_manager_ = std::make_unique<MVCCManager>();
-        visibility_manager_ = std::make_unique<MVCCVisibilityManager>(txn_manager);
-        conflict_detector_ = std::make_unique<MVCCConflictDetector>(txn_manager);
-
         // 将MVCC管理器设置到事务管理器中
         if (txn_manager != nullptr)
         {
@@ -257,7 +250,7 @@ public:
      */
     bool is_visible(const Rid &rid, Transaction *txn, const std::string &table_name = "")
     {
-        // **完全兼容模式：所有记录都可见，忽略MVCC复杂性**
+        // 
         return true;
     }
 
@@ -319,13 +312,4 @@ public:
 
     // get_mvcc_manager方法已在前面定义，删除重复定义
 
-    /**
-     * @brief 获取可见性管理器（用于调试）
-     */
-    MVCCVisibilityManager *get_visibility_manager() { return visibility_manager_.get(); }
-
-    /**
-     * @brief 获取冲突检测器（用于调试）
-     */
-    MVCCConflictDetector *get_conflict_detector() { return conflict_detector_.get(); }
 };

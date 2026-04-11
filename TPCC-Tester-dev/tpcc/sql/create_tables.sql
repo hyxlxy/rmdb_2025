@@ -66,7 +66,7 @@ CREATE TABLE customer
     c_state        char(2),
     c_zip          char(9),
     c_phone        char(16),
-    c_since        datetime,
+    c_since        char(19),
     c_credit       char(2),
     c_credit_lim   float,
     c_discount     float,
@@ -83,7 +83,7 @@ CREATE TABLE history
     h_c_w_id   int,
     h_d_id     int,
     h_w_id     int,
-    h_datetime datetime,
+    h_datetime char(19),
     h_amount   float,
     h_data     char(24)
 );
@@ -93,7 +93,7 @@ CREATE TABLE orders
     o_d_id       int,
     o_w_id       int,
     o_c_id       int,
-    o_entry_d    datetime,
+    o_entry_d    char(19),
     o_carrier_id int,
     o_ol_cnt     int,
     o_all_local  int
@@ -112,7 +112,7 @@ CREATE TABLE order_line
     ol_number      int,
     ol_i_id        int,
     ol_supply_w_id int,
-    ol_delivery_d  datetime,
+    ol_delivery_d  char(19),
     ol_quantity    int,
     ol_amount      float,
     ol_dist_info   char(24)
