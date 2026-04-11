@@ -114,7 +114,19 @@ int main(int argc, char *argv[]) {
     char recv_buf[MAX_MEM_BUFFER_SIZE];
 
     std::vector<std::string> sqls;
-    std::ifstream t("test1.sql",std::ios::in);
+    // 尝试从多个可能的路径打开test1.sql文件
+    std::vector<std::string> possible_paths = {
+        "test1.sql",
+        "../test1.sql",
+        "../../rmdb_client/test1.sql"
+    };
+    
+    std::ifstream t;
+    for (const auto& path : possible_paths) {
+        t.open(path, std::ios::in);
+        if (t.is_open()) break;
+    }
+    
     if(!t.is_open())
     {
         std::cout<<"File Not Open!"<<std::endl;
