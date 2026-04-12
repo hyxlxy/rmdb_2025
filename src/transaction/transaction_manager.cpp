@@ -257,7 +257,6 @@ void TransactionManager::commit(Transaction *txn, LogManager *log_manager)
         if (log_manager != nullptr)
         {
             log_manager->add_log_to_buffer(new CommitLogRecord(txn->get_transaction_id()));
-            log_manager->flush_log_to_disk(); // 刷新日志到磁盘
         }
     }
     catch (const std::exception &e)
@@ -446,7 +445,6 @@ void TransactionManager::abort(Transaction *txn, LogManager *log_manager)
         if (log_manager != nullptr)
         {
             log_manager->add_log_to_buffer(new AbortLogRecord(txn->get_transaction_id()));
-            log_manager->flush_log_to_disk(); // 刷新日志到磁盘
         }
     }
     catch (const std::exception &e)

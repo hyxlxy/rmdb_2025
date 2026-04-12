@@ -128,11 +128,7 @@ void QlManager::run_cmd_utility(std::shared_ptr<Plan> plan, txn_id_t *txn_id, Co
             try {
                 for (auto& [table_name, fh] : sm_manager_->fhs_) {
                     if (fh != nullptr) {
-                        RmFileHdr file_hdr = fh->get_file_hdr();
-                        if (file_hdr.count_cache_valid) {
-                            file_hdr.count_cache_valid = false;
-                            fh->update_file_hdr(file_hdr);
-                        }
+                        fh->invalidate_count_cache();
                     }
                 }
             } catch (const std::exception& e) {
@@ -305,6 +301,11 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
     catch (const RMDBError &e)
     {
         // 索引查询异常，继续执行，输出已有的表头
+    }
+    catch (const TransactionAbortException &)
+    {
+        // 事务中止必须向上传播，不能伪装成“空结果”
+        throw;
     }
     catch (const std::exception &e)
     {

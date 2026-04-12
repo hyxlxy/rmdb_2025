@@ -1,0 +1,34 @@
+before_code_generation:
+  - name: prefer_reproducible_profile_workflow
+    instruction: >
+      如果用户要求分析 RMDB 在 TPC-C 路径上的性能，优先复用固定 profiling 流程：优先抓服务端，
+      perf 不可用时切换到 gprofng，并将初始化阶段与 benchmark-only 阶段分开。
+  - name: analyze_hot_path
+    instruction: >
+      先分析热点路径、内存布局、访问模式、查询计划，再生成代码。
+  - name: classify_bottleneck
+    instruction: >
+      先判断瓶颈属于 CPU、内存、锁、IO、查询计划中的哪一类；若有多类因素，说明主次关系。
+  - name: separate_fact_from_inference
+    instruction: >
+      先区分代码中已确认的事实与尚未测量的推断，不得把推断表述成已证实结论。
+  - name: require_structure_level_advice
+    instruction: >
+      禁止只给抽象建议；优化建议必须落到代码结构、数据结构、执行路径或计划生成逻辑。
+  - name: require_workload_awareness
+    instruction: >
+      先判断目标更偏吞吐、延迟、并发还是 IO 优化，并结合 workload 说明优化适用场景。
+  - name: no_claim_without_evidence
+    instruction: >
+      如果没有性能证据，禁止直接宣称优化有效；必须给出验证方法与预期收益机制。
+
+before_final_response:
+  - name: explain_why_faster
+    instruction: >
+      检查是否解释了为什么更快，必须落到算法、内存、cache、拷贝、锁、IO 或计划质量层面。
+  - name: ensure_validation_plan
+    instruction: >
+      检查是否给出了验证方法，包括指标、对照方式或可执行测试路径。
+  - name: ensure_risk_and_workload
+    instruction: >
+      检查是否说明了副作用、回归风险、适用负载，以及在哪些场景下优化可能无效或更慢。

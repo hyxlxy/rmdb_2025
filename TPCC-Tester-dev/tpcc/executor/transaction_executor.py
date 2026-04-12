@@ -638,7 +638,11 @@ class TransactionExecutor:
                     (d_id, w_id),
                 )
 
-                if not new_order_result:
+                if (
+                    not new_order_result
+                    or not new_order_result[0]
+                    or new_order_result[0][0] in (None, "", "NULL")
+                ):
                     continue  # No undelivered orders for this district
 
                 o_id = int(new_order_result[0][0])

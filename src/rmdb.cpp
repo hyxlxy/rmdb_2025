@@ -9,6 +9,7 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
 #include <cstdio>
+#include <cctype>
 #include <iostream>
 #include <netinet/in.h>
 #include <readline/history.h>
@@ -17,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include <signal.h>
 #include <unistd.h>
 #include <atomic>
+#include <algorithm>
 
 #include "errors.h"
 #include "common/common.h"
@@ -66,6 +68,40 @@ void sigint_handler(int signo)
     std::cout << "The Server receive Crtl+C, will been closed\n";
     longjmp(jmpbuf, 1);
 }
+
+namespace {
+
+std::string normalize_client_command(const char *raw_cmd)
+{
+    std::string normalized = raw_cmd == nullptr ? "" : std::string(raw_cmd);
+    auto is_space = [](unsigned char ch) { return std::isspace(ch) != 0; };
+
+    normalized.erase(normalized.begin(),
+                     std::find_if(normalized.begin(), normalized.end(),
+                                  [&](unsigned char ch) { return !is_space(ch); }));
+    normalized.erase(std::find_if(normalized.rbegin(), normalized.rend(),
+                                  [&](unsigned char ch) { return !is_space(ch); })
+                         .base(),
+                     normalized.end());
+
+    if (!normalized.empty() && normalized.back() == ';')
+    {
+        normalized.pop_back();
+    }
+
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
+                   [](unsigned char ch) { return static_cast<char>(std::toupper(ch)); });
+    return normalized;
+}
+
+bool is_transaction_control_statement(const char *raw_cmd)
+{
+    std::string normalized = normalize_client_command(raw_cmd);
+    return normalized == "BEGIN" || normalized == "COMMIT" ||
+           normalized == "ROLLBACK" || normalized == "ABORT";
+}
+
+} // namespace
 
 // 判断当前正在执行的是显式事务还是单条SQL语句的事务，并更新事务ID
 void SetTransaction(txn_id_t *txn_id, Context *context)
@@ -145,7 +181,17 @@ void *client_handler(void *sock_fd)
 
         // 开启事务，初始化系统所需的上下文信息（包括事务对象指针、锁管理器指针、日志管理器指针、存放结果的buffer、记录结果长度的变量）
         Context *context = new Context(lock_manager.get(), log_manager.get(), nullptr, data_send, &offset);
-        SetTransaction(&txn_id, context);
+        if (is_transaction_control_statement(data_recv))
+        {
+            if (txn_id != INVALID_TXN_ID)
+            {
+                context->txn_ = txn_manager->get_transaction(txn_id);
+            }
+        }
+        else
+        {
+            SetTransaction(&txn_id, context);
+        }
 
         // 用于判断是否已经调用了yy_delete_buffer来删除buf
         bool finish_analyze = false;
@@ -201,7 +247,12 @@ void *client_handler(void *sock_fd)
                     offset = str.length();
 
                     // 回滚事务
-                    txn_manager->abort(context->txn_, log_manager.get());
+                    if (context->txn_ != nullptr)
+                    {
+                        txn_manager->abort(context->txn_, log_manager.get());
+                    }
+                    context->txn_ = nullptr;
+                    txn_id = INVALID_TXN_ID;
 
                     if (output_file_enabled)
                     {

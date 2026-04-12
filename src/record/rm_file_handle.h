@@ -13,6 +13,7 @@ See the Mulan PSL v2 for more details. */
 #include <assert.h>
 
 #include <memory>
+#include <mutex>
 
 #include "bitmap.h"
 #include "common/context.h"
@@ -53,6 +54,7 @@ class RmFileHandle
 private:
     DiskManager *disk_manager_;
     BufferPoolManager *buffer_pool_manager_;
+    mutable std::mutex latch_;
     int fd_;             // 打开文件后产生的文件句柄
     RmFileHdr file_hdr_; // 文件头，维护当前表文件的元数据
 
@@ -95,6 +97,18 @@ public:
     RmPageHandle create_new_page_handle();
 
     RmPageHandle fetch_page_handle(int page_no) const;
+
+    bool invalidate_count_cache() {
+        if (!file_hdr_.count_cache_valid) {
+            return false;
+        }
+        file_hdr_.count_cache_valid = false;
+        char page_buf[PAGE_SIZE];
+        memset(page_buf, 0, PAGE_SIZE);
+        memcpy(page_buf, &file_hdr_, sizeof(file_hdr_));
+        disk_manager_->write_page(fd_, RM_FILE_HDR_PAGE, page_buf, PAGE_SIZE);
+        return true;
+    }
 
     void update_file_hdr(const RmFileHdr& new_hdr) {
         file_hdr_ = new_hdr;

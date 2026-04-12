@@ -576,12 +576,38 @@ public:
         txn_id_t txn_id = txn->get_transaction_id();
 
         std::lock_guard<std::mutex> lock(version_chains_mutex_);
-        // 遍历所有版本链，提交该事务的未提交版本并持久化
-        for (auto &[key, chain] : version_chains_)
+        std::unordered_set<std::string> target_keys;
+        auto write_set = txn->get_write_set();
+        if (write_set != nullptr)
         {
-            if (chain == nullptr)
+            for (auto *write_record : *write_set)
+            {
+                if (write_record == nullptr)
+                {
+                    continue;
+                }
+
+                auto write_type = write_record->GetWriteType();
+                if (write_type != WType::INSERT_TUPLE &&
+                    write_type != WType::UPDATE_TUPLE &&
+                    write_type != WType::DELETE_TUPLE)
+                {
+                    continue;
+                }
+
+                target_keys.insert(rid_to_key(write_record->GetRid(), write_record->GetTableName()));
+            }
+        }
+
+        // 只提交当前事务真正写过的版本链，避免扫描整个全局版本表。
+        for (const auto &key : target_keys)
+        {
+            auto it = version_chains_.find(key);
+            if (it == version_chains_.end() || it->second == nullptr)
+            {
                 continue;
-            commit_chain_versions(chain.get(), txn_id, commit_ts, key);
+            }
+            commit_chain_versions(it->second.get(), txn_id, commit_ts, key);
         }
         // 清理读取集合
         cleanup_read_sets(txn);

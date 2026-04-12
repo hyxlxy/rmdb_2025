@@ -1,11 +1,13 @@
 # 编译产物
 build/
 bin/
+build-gprof/
 lib/
 *.o
 *.so
 *.a
 *.exe
+*.txt
 
 # 自动生成的解析器文件
 src/parser/yacc.tab.cpp

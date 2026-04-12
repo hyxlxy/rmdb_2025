@@ -1,0 +1,23 @@
+before_code_generation:
+  - name: analyze_architecture_layers
+    instruction: >
+      必须先分析本次需求落在 storage、record、index、execution、transaction、recovery 中的哪一层，
+      并说明与相邻层的接口边界。
+  - name: analyze_storage_buffer_index_chain
+    instruction: >
+      必须先分析 storage / buffer / record / index 的关系，确认 page 从何处分配、通过何种 handle 获取、
+      如何 pin/unpin、何时标脏、何时保持元数据一致，再生成代码。
+  - name: verify_page_based_design
+    instruction: >
+      必须检查新增或修改的核心持久化状态是否仍然落在 page 上；若依赖 STL 容器，只能用于非持久化辅助逻辑，
+      禁止替代 page 内核心数据布局。
+  - name: verify_existing_abstractions
+    instruction: >
+      必须确认实现不会绕过 BufferPoolManager、RmFileHandle、IxIndexHandle、SmManager 等现有抽象层。
+  - name: verify_write_path_side_effects
+    instruction: >
+      如果改动涉及插入、删除、更新、索引维护或元数据更新，必须先检查事务写集、WAL、commit/abort、
+      恢复一致性和索引同步影响。
+  - name: enforce_mvp_scope
+    instruction: >
+      必须检查方案是否是最小可实现版本；若一次改动跨越多个子系统或包含未来功能，必须收缩范围后再生成代码。

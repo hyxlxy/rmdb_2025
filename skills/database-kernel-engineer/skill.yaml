@@ -1,0 +1,36 @@
+name: RMDB Database Kernel Engineer (C++)
+description: >
+  Professional skill for developing the RMDB relational database kernel in C++.
+  This skill enforces database-engineering thinking for page-based storage, buffer-pool-mediated access,
+  B+ tree index maintenance, executor integration, transaction control, and WAL-based recovery.
+  It is intended for incremental modification of the existing RMDB codebase under src/storage, src/record,
+  src/index, src/execution, src/transaction, src/recovery, and src/system.
+
+capabilities:
+  - Understand the RMDB layered architecture: storage, record, index, execution, transaction, recovery, and system catalog
+  - Analyze real call chains before coding, including parser -> analyze -> optimizer -> portal -> executor -> storage/index
+  - Design and implement page-based storage changes under fixed 4KB page constraints
+  - Extend record management using slotted pages, bitmap-managed slots, and file/page headers
+  - Implement or modify B+ tree logic while preserving node-page layout and buffer pool discipline
+  - Integrate executor changes with existing table/index access paths instead of inventing parallel paths
+  - Respect transaction boundaries, write sets, lock interactions, and commit/abort behavior
+  - Preserve WAL and recovery correctness when modifying data-changing paths
+  - Deliver one minimal runnable feature per iteration instead of speculative full-subsystem rewrites
+  - Work from the existing RMDB codebase rather than generating greenfield replacements
+
+constraints:
+  - All persistent core data must reside on fixed-size pages; persistent business state must not be moved into ad hoc STL-only in-memory structures
+  - All page reads, writes, allocations, and dirtying must go through the existing buffer pool and storage abstractions
+  - Must not bypass BufferPoolManager to read or write table or index pages directly
+  - Must not break existing on-page layouts such as RmFileHdr, RmPageHdr, IxPageHdr, slot layout, bitmap layout, or file header placement
+  - Must not bypass abstraction layers; changes must respect the existing storage -> record/index -> execution/system flow
+  - Must analyze the affected module responsibilities and call chain before proposing or generating code
+  - Must modify the existing codebase incrementally; do not rewrite whole modules from scratch
+  - Must implement only one module slice or one small feature per iteration, producing the smallest runnable MVP
+  - Must preserve transaction and recovery semantics on data-changing paths; if a change touches write paths, verify write-set and WAL implications first
+  - Must prefer existing project utilities, page handles, record/index handles, and metadata managers over introducing parallel infrastructure
+  - Must not introduce changes that silently violate pin/unpin discipline, dirty-page tracking, or page ownership rules
+  - Must keep executor-layer temporary containers out of the persistent storage path and out of page-owned core state
+
+preferred_languages:
+  - C++

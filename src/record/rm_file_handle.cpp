@@ -10,8 +10,6 @@ See the Mulan PSL v2 for more details. */
 
 #include "rm_file_handle.h"
 #include "recovery/log_manager.h"
-
-std::mutex latch_;
 /**
  * @description: 获取当前表中记录号为rid的记录
  * @param {Rid&} rid 记录号，指定记录的位置

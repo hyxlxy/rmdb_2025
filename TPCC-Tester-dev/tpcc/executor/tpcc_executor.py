@@ -44,6 +44,18 @@ class TpccExecutor:
         table_counts = self.consistency_checker._get_expected_table_counts()
         self.data_generator.configure_from_table_counts(table_counts)
         self.transaction_executor.data_generator.configure_from_table_counts(table_counts)
+        reduced_dataset = (
+            self.transaction_executor.data_generator.ITEMS_TOTAL < 100000
+            or self.transaction_executor.data_generator.CUSTOMERS_PER_DISTRICT < 3000
+            or self.transaction_executor.data_generator.NEW_ORDERS_PER_DISTRICT < 900
+        )
+        if reduced_dataset and not self.transaction_executor.lightweight:
+            self.lightweight = True
+            self.transaction_executor.lightweight = True
+            logger.info(
+                "Detected reduced CSV dataset; enabling lightweight transaction mode "
+                "to avoid standard TPC-C key generation on non-standard fixtures"
+            )
         logger.info(
             "Adjusted benchmark generator to loaded CSV counts: "
             f"items={self.transaction_executor.data_generator.ITEMS_TOTAL}, "

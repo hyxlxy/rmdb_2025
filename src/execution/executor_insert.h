@@ -131,9 +131,7 @@ public:
             delete[] key;
         }
         // 在插入操作完成后
-        RmFileHdr file_hdr = fh_->get_file_hdr();
-        file_hdr.count_cache_valid = false;  // 失效缓存
-        fh_->update_file_hdr(file_hdr);
+        fh_->invalidate_count_cache();
         return nullptr;
     }
 

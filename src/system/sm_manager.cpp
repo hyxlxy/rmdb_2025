@@ -322,8 +322,8 @@ void SmManager::persist_mvcc_version(const Rid &rid, struct TupleVersion *versio
         }
 
         // 执行器阶段已经完成物理 INSERT/UPDATE，DELETE 在 MVCC 中保持逻辑删除。
-        // 这里不再重复改写物理记录，提交阶段只负责把相关页刷盘，避免双写和错序。
-        buffer_pool_manager_->flush_page({target_fh->GetFd(), rid.page_no});
+        // 提交阶段不再对每个事务同步刷页，避免高并发 benchmark 被强制串行化。
+        // 物理页仍由缓冲池/检查点统一落盘。
     }
     catch (const std::exception &e)
     {

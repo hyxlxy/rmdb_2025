@@ -85,9 +85,7 @@ public:
         }
         
         // 删除操作完成后，失效记录数缓存
-        RmFileHdr file_hdr = fh_->get_file_hdr();
-        file_hdr.count_cache_valid = false;
-        fh_->update_file_hdr(file_hdr);
+        fh_->invalidate_count_cache();
         
         return nullptr;
     }
