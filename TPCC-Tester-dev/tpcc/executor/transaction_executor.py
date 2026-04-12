@@ -113,6 +113,7 @@ class TransactionExecutor:
         timestamp = datetime.now()
         retry_delay = 0.1  # 100ms
         max_execution_time = 60  # 60 second timeout per transaction
+        max_retry_attempts = 5
         attempt = 0
 
         db = self._get_thread_db_connection()
@@ -137,28 +138,32 @@ class TransactionExecutor:
                 logger.warning(
                     f"Transaction type {transaction_type} took {execution_time:.2f}s, exceeding timeout"
                 )
+                return TransactionResult(
+                    transaction_type=transaction_type,
+                    success=False,
+                    execution_time=execution_time,
+                    timestamp=timestamp,
+                    thread_id=thread_id,
+                )
 
             if not success:
                 attempt += 1
                 execution_time = time.time() - start_time
-
-                # Check for deadlock or timeout specific errors
-                # error_msg = str(e).lower()
-                # is_deadlock = (
-                #     "deadlock" in error_msg
-                #     or "timeout" in error_msg
-                #     or "lock" in error_msg
-                # )
-
                 logger.warning(f"Transaction attempt {attempt} failed")
-                # if is_deadlock:
-                #     logger.info(
-                #         "Detected potential deadlock, will retry with longer delay"
-                #     )
 
-                # Exponential backoff with longer delay for deadlocks
-                # delay = retry_delay * attempt
-                # time.sleep(delay)
+                if attempt >= max_retry_attempts:
+                    logger.warning(
+                        f"Transaction type {transaction_type} reached retry limit ({max_retry_attempts})"
+                    )
+                    return TransactionResult(
+                        transaction_type=transaction_type,
+                        success=False,
+                        execution_time=execution_time,
+                        timestamp=timestamp,
+                        thread_id=thread_id,
+                    )
+
+                time.sleep(retry_delay * attempt)
                 continue
 
             if attempt > 0:

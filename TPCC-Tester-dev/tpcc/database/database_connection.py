@@ -32,7 +32,7 @@ class DatabaseConnection:
     def connect(self) -> None:
         """Establish database connection to RMDB."""
         try:
-            self.client = Client()
+            self.client = Client(self.host, self.port)
             self._connected = True
             logger.info("Connected to RMDB database")
         except Exception as e:

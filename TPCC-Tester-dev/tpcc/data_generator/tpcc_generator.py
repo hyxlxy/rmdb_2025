@@ -27,11 +27,12 @@ logger = logging.getLogger(__name__)
 class TpccDataGenerator:
     """Generates TPC-C compliant test data with proper scaling."""
 
-    def __init__(self, scale_factor: int = 1):
+    def __init__(self, scale_factor: int = 1, lightweight: bool = False):
         """Initialize data generator with scale factor.
 
         Args:
             scale_factor: Number of warehouses to generate (default: 1)
+            lightweight: Use reduced volume data for low-memory testing
         """
         self.scale_factor = max(1, scale_factor)
         self.random = RandomDataGenerator()
@@ -43,6 +44,13 @@ class TpccDataGenerator:
         self.ITEMS_TOTAL = 100000
         self.ORDERS_PER_DISTRICT = 3000
         self.NEW_ORDERS_PER_DISTRICT = 900
+
+        if lightweight:
+            self.CUSTOMERS_PER_DISTRICT = 300
+            self.ITEMS_TOTAL = 1000
+            self.ORDERS_PER_DISTRICT = 300
+            self.NEW_ORDERS_PER_DISTRICT = 90
+            # Keep standard district count, but reduce row counts for easier local testing.
 
     def generate_warehouses(self) -> Iterator[Warehouse]:
         """Generate warehouse data."""

@@ -56,42 +56,35 @@ class Driver:
     # def close(self):
     #     self._client.close()
 
+    def _send_sql_file(self, sql_file):
+        with open(sql_file, "r") as f:
+            content = f.read()
+
+        # Split by semicolon and send complete SQL commands.
+        statements = [stmt.strip() for stmt in re.split(r";\s*", content) if stmt.strip()]
+        for stmt in statements:
+            self._client.send_cmd(stmt + ";")
+
     def build(self):
         print("Build table schema...")
         sql_file = SQL_BASE_PATH / "create_tables.sql"
-        with open(sql_file, "r") as f:
-            sql = f.read().split("\n")
-        for line in sql:
-            if line:
-                self._client.send_cmd(line)
+        self._send_sql_file(sql_file)
 
     def load(self):
         print("Load table data...")
         sql_file = SQL_BASE_PATH / "load_csvs.sql"
-        with open(sql_file, "r") as f:
-            sql = f.read().split("\n")
-        for line in sql:
-            if line:
-                self._client.send_cmd(line)
+        self._send_sql_file(sql_file)
         print("Database has been initialized.")
 
     def create_index(self):
         print("Create index...")
         sql_file = SQL_BASE_PATH / "create_index.sql"
-        with open(sql_file, "r") as f:
-            sql = f.read().split("\n")
-        for line in sql:
-            if line:
-                self._client.send_cmd(line)
+        self._send_sql_file(sql_file)
 
     def all_in_load(self):
         print("Loading data...")
         sql_file = SQL_BASE_PATH / "load_data.sql"
-        with open(sql_file, "r") as f:
-            sql = f.read().split("\n")
-        for line in sql:
-            if line:
-                self._client.send_cmd(line)
+        self._send_sql_file(sql_file)
 
     def count_and_check(self, client, table, count_as, expected_count, count_type):
         """

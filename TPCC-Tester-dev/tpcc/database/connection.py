@@ -1,5 +1,6 @@
 import readline
 import socket
+from typing import Optional
 
 from tpcc.config import HOST, PORT
 
@@ -9,7 +10,7 @@ class Client:
 
     sockfd = None
 
-    def __init__(self) -> None:
+    def __init__(self, host: Optional[str] = None, port: Optional[int] = None) -> None:
         readline.parse_and_bind(r"'\e[A': history-search-backward")
         readline.parse_and_bind(r"'\e[B': history-search-forward")
 
@@ -23,7 +24,9 @@ class Client:
         # else:
         #     self.sockfd = self.__init_tcp_sock(self.HOST, args.p)
 
-        self.sockfd = self.__init_tcp_sock(HOST, PORT)
+        server_host = host or HOST
+        server_port = port or PORT
+        self.sockfd = self.__init_tcp_sock(server_host, server_port)
 
         if self.sockfd is None:
             print("error occurs when initialize Client")

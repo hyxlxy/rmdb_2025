@@ -62,6 +62,8 @@ class RMDBCursor:
                     # 没有更多占位符，停止替换
                     break
 
+        query = self._normalize_sql(query)
+
         # Send query to RMDB
         result = self.client.send_cmd(query)
         self.last_result = result
@@ -116,6 +118,45 @@ class RMDBCursor:
 
         self.rows = data_rows
         self.rowcount = len(data_rows)
+
+    def _normalize_sql(self, sql: str) -> str:
+        """Ensure statements sent to RMDB follow parser expectations."""
+        normalized = self._collapse_whitespace(sql).strip()
+        if not normalized:
+            return normalized
+        if not normalized.endswith(";"):
+            normalized += ";"
+        return normalized
+
+    def _collapse_whitespace(self, sql: str) -> str:
+        """Collapse multiline SQL into a single line without altering quoted text."""
+        result = []
+        in_string = False
+        pending_space = False
+
+        for ch in sql:
+            if ch == "'":
+                if pending_space and result and result[-1] != " ":
+                    result.append(" ")
+                pending_space = False
+                in_string = not in_string
+                result.append(ch)
+                continue
+
+            if in_string:
+                result.append(ch)
+                continue
+
+            if ch.isspace():
+                pending_space = True
+                continue
+
+            if pending_space and result and result[-1] != " ":
+                result.append(" ")
+            pending_space = False
+            result.append(ch)
+
+        return "".join(result)
 
     def fetchone(self) -> Optional[Tuple]:
         """Fetch the next row of a query result set."""
@@ -188,7 +229,7 @@ class RMDBCursorAdapter:
                 continue
 
             # Execute each statement without parameters
-            self._cursor.execute(statement)
+            self._cursor.execute(self._cursor._normalize_sql(statement))
 
     def fetchone(self) -> Optional[Tuple]:
         """Fetch one row."""

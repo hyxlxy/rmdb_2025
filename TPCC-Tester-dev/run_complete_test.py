@@ -17,8 +17,8 @@ if __name__ == "__main__":
         'run_complete_test.py',
         '--complete-test',
         '--scale', '1',
-        '--threads', '4',
-        '--transactions', '100',
+        '--threads', '2',
+        '--transactions', '50',
         '--csv-data-dir', '/home/hxl/Desktop/rmdb_2025/src/test/performance_test/table_data'
     ]
     

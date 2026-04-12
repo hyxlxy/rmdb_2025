@@ -84,6 +84,10 @@ def main():
         "--no-benchmark", action="store_true",
         help="Skip performance benchmark in complete test"
     )
+    parser.add_argument(
+        "--lightweight", action="store_true",
+        help="Use reduced TPC-C data volume for low-memory testing"
+    )
 
     args = parser.parse_args()
     setup_logging(args.verbose)
@@ -96,9 +100,8 @@ def main():
     try:
         # Initialize database connection
         with DatabaseConnection(args.host, args.port) as db:
-            executor = TpccExecutor(db, args.scale)
+            executor = TpccExecutor(db, args.scale, lightweight=args.lightweight)
 
-            # One-click complete test
             if args.complete_test:
                 logger.info("Starting complete TPC-C test...")
                 results = executor.run_complete_test(
@@ -108,9 +111,9 @@ def main():
                     read_write_ratio=args.rw_ratio,
                     run_consistency_check=not args.no_consistency_check,
                     run_benchmark=not args.no_benchmark,
-                    show_stats=True
+                    show_stats=True,
                 )
-                
+
                 if results.get('test_completed'):
                     logger.info("Complete test finished successfully!")
                     sys.exit(0)

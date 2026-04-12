@@ -321,24 +321,8 @@ void SmManager::persist_mvcc_version(const Rid &rid, struct TupleVersion *versio
             return;
         }
 
-        // **关键修复：删除版本不删除物理记录**
-        if (version->is_deleted)
-        {
-            // **MVCC删除版本只是逻辑删除，物理记录必须保留**
-            // 这样其他事务仍能在其快照中看到记录
-            // 物理记录的清理应该由垃圾回收机制处理
-
-            // 不对物理存储做任何操作，只是标记版本已提交
-            // 可见性完全由版本链控制
-            return;
-        }
-        else
-        {
-            // 如果是更新或插入版本，将数据写入底层存储
-            target_fh->update_record(rid, version->data, nullptr);
-        }
-
-        // 恢复页面刷新以确保数据持久性
+        // 执行器阶段已经完成物理 INSERT/UPDATE，DELETE 在 MVCC 中保持逻辑删除。
+        // 这里不再重复改写物理记录，提交阶段只负责把相关页刷盘，避免双写和错序。
         buffer_pool_manager_->flush_page({target_fh->GetFd(), rid.page_no});
     }
     catch (const std::exception &e)

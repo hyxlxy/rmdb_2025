@@ -269,6 +269,11 @@ public:
             try {
                 rid_ = scan_->rid();
                 rm_record_ = get_record_mvcc(fh_, rid_, context_, sm_manager_);
+                if (!rm_record_)
+                {
+                    scan_->next();
+                    continue;
+                }
                 if (cmp_conds(rm_record_.get(), fed_conds_, cols_))
                 {
                     break;
@@ -297,6 +302,10 @@ public:
             try {
                 rid_ = scan_->rid();
                 rm_record_ = get_record_mvcc(fh_, rid_, context_, sm_manager_);
+                if (!rm_record_)
+                {
+                    continue;
+                }
                 if (cmp_conds(rm_record_.get(), fed_conds_, cols_))
                 {
                     break;
@@ -316,31 +325,6 @@ public:
         if (scan_->is_end() || !rm_record_) {
             return nullptr;
         }
-
-        #ifdef TPCC_PERFORMANCE_MODE
-        // TPCC优化：减少内存拷贝和MVCC检查
-        if (!context_ || !context_->txn_) {
-            // 快速路径：直接返回记录副本
-            auto record = std::make_unique<RmRecord>(rm_record_->size);
-            if (record && record->data && rm_record_->data) {
-                memcpy(record->data, rm_record_->data, rm_record_->size);
-            }
-            return record;
-        }
-
-        // 简化的MVCC检查
-        auto mvcc_record_mgr = MVCCExecutorBase::get_mvcc_record_manager();
-        auto mvcc_manager = mvcc_record_mgr ? mvcc_record_mgr->get_mvcc_manager() : nullptr;
-        if (mvcc_manager) {
-            auto version_chain = mvcc_manager->get_version_chain(rid_, context_->current_table_name_);
-            if (version_chain) {
-                auto head = version_chain->get_head();
-                if (head && head->txn_id == context_->txn_->get_transaction_id() && head->is_deleted) {
-                    return nullptr; // 当前事务删除的记录
-                }
-            }
-        }
-        #endif
 
         // 创建记录的副本而不是移动，避免多次调用时出现空指针
         auto record = std::make_unique<RmRecord>(rm_record_->size);

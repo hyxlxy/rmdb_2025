@@ -20,17 +20,18 @@ logger = logging.getLogger(__name__)
 class TpccExecutor:
     """Main executor for TPC-C benchmark operations."""
 
-    def __init__(self, db_connection: DatabaseConnection, scale_factor: int = 1):
+    def __init__(self, db_connection: DatabaseConnection, scale_factor: int = 1, lightweight: bool = False):
         """Initialize TPC-C executor.
 
         Args:
             db_connection: Database connection instance
             scale_factor: Number of warehouses to test
+            lightweight: Use reduced data volume for low-memory testing
         """
         self.db = db_connection
         self.scale_factor = scale_factor
         self.schema_manager = SchemaManager(db_connection)
-        self.data_generator = TpccDataGenerator(scale_factor)
+        self.data_generator = TpccDataGenerator(scale_factor, lightweight=lightweight)
         self.load_executor = LoadExecutor(db_connection)
         self.consistency_checker = ConsistencyCheckExecutor(db_connection, scale_factor)
         self.transaction_executor = TransactionExecutor(db_connection, scale_factor)
@@ -68,6 +69,7 @@ class TpccExecutor:
             csv_data_dir: Directory containing CSV data files
         """
         logger.info(f"Loading TPC-C data from CSV files in {csv_data_dir}")
+        self.consistency_checker.set_csv_data_dir(csv_data_dir)
         self.load_executor.load_all_data_csv(csv_data_dir)
         logger.info("TPC-C data loaded successfully from CSV files")
 

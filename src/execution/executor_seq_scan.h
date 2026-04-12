@@ -56,6 +56,11 @@ class SeqScanExecutor : public MVCCExecutorBase {
                 return;
             }
             auto rec = get_record_mvcc(fh_, rid_, context_, sm_manager_);
+            if (!rec)
+            {
+                scan_->next();
+                continue;
+            }
             if (eval_conds(cols_, fed_conds_, rec.get()))
             {
                 return;
@@ -82,6 +87,11 @@ class SeqScanExecutor : public MVCCExecutorBase {
                 return;
             }
             auto rec = get_record_mvcc(fh_, rid_, context_, sm_manager_);
+            if (!rec)
+            {
+                scan_->next();
+                continue;
+            }
             if (eval_conds(cols_, fed_conds_, rec.get()))
             {
                 return;

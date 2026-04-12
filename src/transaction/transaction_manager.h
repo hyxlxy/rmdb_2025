@@ -176,44 +176,8 @@ public:
      */
     void rollback_traditional(Transaction* txn, LogManager* log_manager);
 
-    /**
-     * @description: TPCC优化：提交单个写操作的MVCC版本
-     * @param mvcc_manager MVCC管理器
-     * @param txn 事务
-     * @param write_record 写记录
-     */
-    void commit_single_write_mvcc_version(MVCCManager* mvcc_manager, Transaction* txn, WriteRecord* write_record);
-
     static std::unordered_map<txn_id_t, Transaction *> txn_map;     // 全局事务表，存放事务ID与事务对象的映射关系
 
-private:
-    /**
-     * @description: 判断是否是TPCC事务
-     * @param write_set 写操作集合
-     * @return 是否是TPCC事务
-     */
-    bool is_tpcc_transaction(std::shared_ptr<std::deque<WriteRecord*>> write_set);
-    
-    /**
-     * @description: 验证TPCC事务的完整性
-     * @param write_set 写操作集合
-     * @return 是否为完整的TPCC事务
-     */
-    bool validate_tpcc_transaction_completeness(std::shared_ptr<std::deque<WriteRecord*>> write_set);
-    
-    /**
-     * @description: 验证订单ID的连续性
-     * @param write_set 写操作集合
-     * @return 是否订单ID连续
-     */
-    bool validate_order_id_consistency(std::shared_ptr<std::deque<WriteRecord*>> write_set);
-    
-    /**
-     * @description: 验证order_line数量与orders.o_ol_cnt的一致性
-     * @param write_set 写操作集合
-     * @return 是否数量一致
-     */
-    bool validate_orderline_count_consistency(std::shared_ptr<std::deque<WriteRecord*>> write_set);
     ConcurrencyMode concurrency_mode_;      // 事务使用的并发控制算法，目前只需要考虑2PL
     std::atomic<txn_id_t> next_txn_id_{0};  // 用于分发事务ID
     std::atomic<timestamp_t> next_timestamp_{1};    // 用于分发事务时间戳

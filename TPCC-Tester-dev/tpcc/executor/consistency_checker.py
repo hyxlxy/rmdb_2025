@@ -4,6 +4,7 @@ Provides comprehensive data validation and statistics collection.
 """
 
 import logging
+import os
 from typing import Dict, Any
 
 from ..database.database_connection import DatabaseConnection
@@ -18,15 +19,62 @@ class ConsistencyCheckExecutor:
     DISTRICTS_PER_WAREHOUSE = 10
     ITEMS_TOTAL = 100000
 
-    def __init__(self, db_connection: DatabaseConnection, scale_factor: int = 1):
+    def __init__(
+        self,
+        db_connection: DatabaseConnection,
+        scale_factor: int = 1,
+        csv_data_dir: str = None,
+    ):
         """Initialize Consistency Check Executor.
 
         Args:
             db_connection: Database connection instance
             scale_factor: Number of warehouses in the test
+            csv_data_dir: Optional CSV data directory used for loading
         """
         self.db = db_connection
         self.scale_factor = scale_factor
+        self.csv_data_dir = csv_data_dir
+
+    def set_csv_data_dir(self, csv_data_dir: str) -> None:
+        """Update CSV directory for count checks."""
+        self.csv_data_dir = csv_data_dir
+
+    def _count_csv_rows(self, table_name: str) -> int:
+        """Count CSV data rows excluding the header."""
+        if not self.csv_data_dir:
+            return -1
+
+        csv_path = os.path.join(self.csv_data_dir, f"{table_name}.csv")
+        if not os.path.exists(csv_path):
+            return -1
+
+        with open(csv_path, "r", encoding="utf-8") as csv_file:
+            return max(0, sum(1 for _ in csv_file) - 1)
+
+    def _get_expected_table_counts(self) -> Dict[str, int]:
+        """Use CSV row counts when available, otherwise fall back to standard TPC-C counts."""
+        expected = {
+            "warehouse": self.scale_factor,
+            "district": self.scale_factor * self.DISTRICTS_PER_WAREHOUSE,
+            "item": self.ITEMS_TOTAL,
+            "customer": self.scale_factor * self.DISTRICTS_PER_WAREHOUSE * 3000,
+            "stock": self.scale_factor * self.ITEMS_TOTAL,
+            "orders": self.scale_factor * self.DISTRICTS_PER_WAREHOUSE * 3000,
+            "order_line": self.scale_factor * self.DISTRICTS_PER_WAREHOUSE * 3000 * 10,
+            "new_orders": self.scale_factor * self.DISTRICTS_PER_WAREHOUSE * 900,
+            "history": self.scale_factor * self.DISTRICTS_PER_WAREHOUSE * 3000,
+        }
+
+        if not self.csv_data_dir:
+            return expected
+
+        for table_name in list(expected.keys()):
+            csv_count = self._count_csv_rows(table_name)
+            if csv_count >= 0:
+                expected[table_name] = csv_count
+
+        return expected
 
     def run_consistency_checks(self) -> Dict[str, bool]:
         """Run comprehensive consistency checks on loaded TPC-C data.
@@ -64,38 +112,7 @@ class ConsistencyCheckExecutor:
         """Check table row counts against expected values."""
         checks = {}
 
-        # Define the check configuration for all tables
-        table_checks = [
-            ("warehouse", self.scale_factor),
-            ("district", self.scale_factor * self.DISTRICTS_PER_WAREHOUSE),
-            ("item", self.ITEMS_TOTAL),
-            (
-                "customer",
-                self.scale_factor * self.DISTRICTS_PER_WAREHOUSE * 3000,
-            ),  # 3000 customers per district
-            (
-                "stock",
-                self.scale_factor * self.ITEMS_TOTAL,
-            ),  # One stock record per item per warehouse
-            (
-                "orders",
-                self.scale_factor * self.DISTRICTS_PER_WAREHOUSE * 3000,
-            ),  # One order per customer
-            (
-                "order_line",
-                self.scale_factor * self.DISTRICTS_PER_WAREHOUSE * 3000 * 10,
-            ),  # Average of 10 lines per order
-            (
-                "new_orders",
-                self.scale_factor * self.DISTRICTS_PER_WAREHOUSE * 900,
-            ),  # 900 new orders per district
-            (
-                "history",
-                self.scale_factor * self.DISTRICTS_PER_WAREHOUSE * 3000,
-            ),  # One history record per customer
-        ]
-
-        for table_name, expected in table_checks:
+        for table_name, expected in self._get_expected_table_counts().items():
             check_name = f"{table_name}_count"
             try:
                 result = self.db.execute_query(
@@ -149,7 +166,7 @@ class ConsistencyCheckExecutor:
 
                     # Get max new order ID for this warehouse and district
                     max_new_order_result = self.db.execute_query(
-                        "SELECT MAX(no_o_id) as max_no_o_id FROM new_orders WHERE no_w_id = ? AND o_d_id = ?",
+                        "SELECT MAX(no_o_id) as max_no_o_id FROM new_orders WHERE no_w_id = ? AND no_d_id = ?",
                         (w_id, d_id),
                     )
 
@@ -158,13 +175,14 @@ class ConsistencyCheckExecutor:
                         checks["district_order_consistency"] = False
                         continue
 
-                    max_no_o_id = int(max_new_order_result[0][0])
+                    max_no_o_id_raw = max_new_order_result[0][0]
+                    max_no_o_id = int(max_no_o_id_raw) if max_no_o_id_raw is not None else None
 
-                    # Check consistency: d_next_o_id - 1 should equal max_o_id and max_no_o_id
+                    # With reduced CSV datasets, new_orders may be empty initially.
                     expected = max_o_id + 1
-                    consistent = (
-                        d_next_o_id - 1 == max_o_id and d_next_o_id - 1 == max_no_o_id
-                    )
+                    consistent = d_next_o_id - 1 == max_o_id
+                    if max_no_o_id is not None:
+                        consistent = consistent and d_next_o_id - 1 == max_no_o_id
 
                     if not consistent:
                         logger.warning(
@@ -208,7 +226,7 @@ class ConsistencyCheckExecutor:
                 
                 # 安全地访问结果
                 if result and len(result) > 0 and len(result[0]) > 0:
-                    stats[table] = result[0][0]
+                    stats[table] = int(result[0][0])
                     logger.debug(f"Table {table}: {stats[table]} rows")
                 else:
                     logger.warning(f"Unexpected result format for {table}: {result}")
@@ -221,7 +239,7 @@ class ConsistencyCheckExecutor:
                     # 备用方法：使用简单的SELECT * 然后计算行数
                     result = self.db.execute_query(f"SELECT * FROM {table}")
                     if result:
-                        stats[table] = len(result)
+                        stats[table] = int(len(result))
                         logger.info(f"Table {table}: {stats[table]} rows (using fallback method)")
                     else:
                         stats[table] = 0
@@ -403,7 +421,8 @@ class ConsistencyCheckExecutor:
                         checks["new_orders_consistency"] = False
                         continue
 
-                    max_no_o_id = int(max_new_orders_result[0][0])
+                    max_no_o_id_raw = max_new_orders_result[0][0]
+                    max_no_o_id = int(max_no_o_id_raw) if max_no_o_id_raw is not None else None
 
                     # Get min new order ID for this warehouse and district
                     min_new_orders_result = self.db.execute_query(
@@ -418,11 +437,15 @@ class ConsistencyCheckExecutor:
                         checks["new_orders_consistency"] = False
                         continue
 
-                    min_no_o_id = int(min_new_orders_result[0][0])
+                    min_no_o_id_raw = min_new_orders_result[0][0]
+                    min_no_o_id = int(min_no_o_id_raw) if min_no_o_id_raw is not None else None
 
-                    # Check consistency: new_orders - min_no_o_id + 1 should equal count_no_o_id
-                    expected = max_no_o_id - min_no_o_id + 1
-                    consistent = count_no_o_id == expected
+                    if count_no_o_id == 0:
+                        expected = 0
+                        consistent = max_no_o_id is None and min_no_o_id is None
+                    else:
+                        expected = max_no_o_id - min_no_o_id + 1
+                        consistent = count_no_o_id == expected
 
                     if not consistent:
                         logger.warning(

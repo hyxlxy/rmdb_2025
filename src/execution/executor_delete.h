@@ -47,7 +47,11 @@ public:
     {
         for (auto &rid : rids_)
         {
-            auto &&rec = get_record_mvcc(fh_, rid, context_, sm_manager_);
+            auto rec = get_record_mvcc(fh_, rid, context_, sm_manager_);
+            if (!rec)
+            {
+                continue;
+            }
             // 如果有索引，则必然是唯一索引
             for (auto &[index_name, index] : tab_.indexes)
             {
@@ -60,12 +64,24 @@ public:
                     offset += index.cols[i].len;
                 }
                 ih->delete_entry(key, context_->txn_);
+                if (context_ && context_->txn_)
+                {
+                    RmRecord deleted_index_record(index.col_tot_len);
+                    memcpy(deleted_index_record.data, key, index.col_tot_len);
+                    auto *index_write = new WriteRecord(WType::IX_DELETE_TUPLE, index_name, rid, deleted_index_record);
+                    context_->txn_->append_write_record(index_write);
+                }
                 delete[] key;
             }
-            fh_->delete_record(rid, context_);
-            auto *wr =
-                new WriteRecord(WType::DELETE_TUPLE, tab_name_, rid, *rec);
-            context_->txn_->append_write_record(wr);
+            if (!delete_record_mvcc(fh_, rid, context_, sm_manager_))
+            {
+                throw TransactionAbortException(context_->txn_->get_transaction_id(), AbortReason::WRITE_WRITE_CONFLICT);
+            }
+            if (context_ && context_->txn_)
+            {
+                auto *wr = new WriteRecord(WType::DELETE_TUPLE, tab_name_, rid, *rec);
+                context_->txn_->append_write_record(wr);
+            }
         }
         
         // 删除操作完成后，失效记录数缓存
