@@ -52,6 +52,10 @@ class SeqScanExecutor : public MVCCExecutorBase {
         while (!scan_->is_end())
         {
             rid_ = scan_->rid();
+            if (context_ != nullptr)
+            {
+                context_->current_table_name_ = tab_name_;
+            }
             if (fed_conds_.empty()) {
                 return;
             }
@@ -83,6 +87,10 @@ class SeqScanExecutor : public MVCCExecutorBase {
         while (!scan_->is_end())
         {
             rid_ = scan_->rid();
+            if (context_ != nullptr)
+            {
+                context_->current_table_name_ = tab_name_;
+            }
             if (fed_conds_.empty()) {
                 return;
             }
@@ -114,6 +122,10 @@ class SeqScanExecutor : public MVCCExecutorBase {
         }
         // 直接返回当前记录，不要在这里移动到下一个记录
         // 移动操作由外部的nextTuple()负责
+        if (context_ != nullptr)
+        {
+            context_->current_table_name_ = tab_name_;
+        }
         auto record = get_record_mvcc(fh_, rid_, context_, sm_manager_);
         return record;
     }

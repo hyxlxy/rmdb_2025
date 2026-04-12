@@ -52,6 +52,36 @@ class TpccDataGenerator:
             self.NEW_ORDERS_PER_DISTRICT = 90
             # Keep standard district count, but reduce row counts for easier local testing.
 
+    def configure_from_table_counts(self, table_counts: Dict[str, int]) -> None:
+        """Adjust generator cardinalities to match already-loaded CSV data.
+
+        This keeps benchmark key generation inside the actually loaded key space.
+        """
+        if not table_counts:
+            return
+
+        warehouse_count = max(1, self.scale_factor * self.WAREHOUSES_PER_SCALE)
+        district_total = max(1, warehouse_count * self.DISTRICTS_PER_WAREHOUSE)
+
+        item_total = int(table_counts.get("item", self.ITEMS_TOTAL) or self.ITEMS_TOTAL)
+        customer_total = int(
+            table_counts.get("customer", district_total * self.CUSTOMERS_PER_DISTRICT)
+            or (district_total * self.CUSTOMERS_PER_DISTRICT)
+        )
+        orders_total = int(
+            table_counts.get("orders", district_total * self.ORDERS_PER_DISTRICT)
+            or (district_total * self.ORDERS_PER_DISTRICT)
+        )
+        new_orders_total = int(
+            table_counts.get("new_orders", district_total * self.NEW_ORDERS_PER_DISTRICT)
+            or 0
+        )
+
+        self.ITEMS_TOTAL = max(1, item_total)
+        self.CUSTOMERS_PER_DISTRICT = max(1, customer_total // district_total)
+        self.ORDERS_PER_DISTRICT = max(1, orders_total // district_total)
+        self.NEW_ORDERS_PER_DISTRICT = max(0, new_orders_total // district_total)
+
     def generate_warehouses(self) -> Iterator[Warehouse]:
         """Generate warehouse data."""
         warehouse_count = self.WAREHOUSES_PER_SCALE * self.scale_factor

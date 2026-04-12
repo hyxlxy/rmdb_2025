@@ -268,6 +268,10 @@ public:
         {
             try {
                 rid_ = scan_->rid();
+                if (context_ != nullptr)
+                {
+                    context_->current_table_name_ = tab_name_;
+                }
                 rm_record_ = get_record_mvcc(fh_, rid_, context_, sm_manager_);
                 if (!rm_record_)
                 {
@@ -301,6 +305,10 @@ public:
         {
             try {
                 rid_ = scan_->rid();
+                if (context_ != nullptr)
+                {
+                    context_->current_table_name_ = tab_name_;
+                }
                 rm_record_ = get_record_mvcc(fh_, rid_, context_, sm_manager_);
                 if (!rm_record_)
                 {
@@ -324,6 +332,11 @@ public:
     {
         if (scan_->is_end() || !rm_record_) {
             return nullptr;
+        }
+
+        if (context_ != nullptr)
+        {
+            context_->current_table_name_ = tab_name_;
         }
 
         // 创建记录的副本而不是移动，避免多次调用时出现空指针

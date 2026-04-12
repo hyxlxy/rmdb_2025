@@ -54,16 +54,31 @@ class TransactionExecutor:
     ORDER_STATUS = 3
     STOCK_LEVEL = 4
 
-    def __init__(self, db_connection: DatabaseConnection, scale_factor: int = 1):
+    TRANSACTION_NAMES = {
+        NEW_ORDER: "NEW_ORDER",
+        PAYMENT: "PAYMENT",
+        DELIVERY: "DELIVERY",
+        ORDER_STATUS: "ORDER_STATUS",
+        STOCK_LEVEL: "STOCK_LEVEL",
+    }
+
+    def __init__(
+        self,
+        db_connection: DatabaseConnection,
+        scale_factor: int = 1,
+        lightweight: bool = False,
+    ):
         """Initialize TPC-C transaction executor.
 
         Args:
             db_connection: Database connection instance
             scale_factor: Number of warehouses to test
+            lightweight: Use reduced key space for reduced CSV datasets
         """
         self.db = db_connection
         self.scale_factor = scale_factor
-        self.data_generator = TpccDataGenerator(scale_factor)
+        self.lightweight = lightweight
+        self.data_generator = TpccDataGenerator(scale_factor, lightweight=lightweight)
 
         # Thread-local storage for database connections
         self._thread_local = threading.local()
@@ -96,6 +111,20 @@ class TransactionExecutor:
                         raise
                     time.sleep(0.1 * retry_count)  # Exponential backoff
         return self._thread_local.db
+
+    def _transaction_name(self, transaction_type: int) -> str:
+        """Return human-readable transaction type name."""
+        return self.TRANSACTION_NAMES.get(transaction_type, f"UNKNOWN({transaction_type})")
+
+    def _rollback_with_reason(self, db: DatabaseConnection, reason: str, **context) -> bool:
+        """Rollback current transaction and emit a structured warning."""
+        if context:
+            context_str = ", ".join(f"{key}={value}" for key, value in context.items())
+            logger.warning(f"{reason}: {context_str}")
+        else:
+            logger.warning(reason)
+        db.execute_update("ROLLBACK")
+        return False
 
     def _execute_transaction(
         self, transaction_type: int, thread_id: int
@@ -136,7 +165,8 @@ class TransactionExecutor:
 
             if execution_time > max_execution_time:
                 logger.warning(
-                    f"Transaction type {transaction_type} took {execution_time:.2f}s, exceeding timeout"
+                    f"{self._transaction_name(transaction_type)} on thread {thread_id} "
+                    f"took {execution_time:.2f}s, exceeding timeout"
                 )
                 return TransactionResult(
                     transaction_type=transaction_type,
@@ -149,11 +179,15 @@ class TransactionExecutor:
             if not success:
                 attempt += 1
                 execution_time = time.time() - start_time
-                logger.warning(f"Transaction attempt {attempt} failed")
+                logger.warning(
+                    f"{self._transaction_name(transaction_type)} on thread {thread_id} "
+                    f"attempt {attempt} failed"
+                )
 
                 if attempt >= max_retry_attempts:
                     logger.warning(
-                        f"Transaction type {transaction_type} reached retry limit ({max_retry_attempts})"
+                        f"{self._transaction_name(transaction_type)} on thread {thread_id} "
+                        f"reached retry limit ({max_retry_attempts})"
                     )
                     return TransactionResult(
                         transaction_type=transaction_type,
@@ -205,8 +239,13 @@ class TransactionExecutor:
                 (d_id, w_id),
             )
             if not district_info:
-                db.execute_update("ROLLBACK")
-                return False
+                return self._rollback_with_reason(
+                    db,
+                    "NEW_ORDER missing district row",
+                    w_id=w_id,
+                    d_id=d_id,
+                    c_id=c_id,
+                )
 
             d_tax, d_next_o_id = district_info[0]
             d_tax = float(d_tax)
@@ -230,8 +269,14 @@ class TransactionExecutor:
                 (d_id, c_id, w_id),
             )
             if not customer_info:
-                db.execute_update("ROLLBACK")
-                return False
+                return self._rollback_with_reason(
+                    db,
+                    "NEW_ORDER missing customer/warehouse row",
+                    w_id=w_id,
+                    d_id=d_id,
+                    c_id=c_id,
+                    o_id=o_id,
+                )
 
             c_discount, c_last, c_credit, w_tax = customer_info[0]
             c_discount = float(c_discount)
@@ -265,8 +310,16 @@ class TransactionExecutor:
                     (ol_i_id[ol_number - 1],),
                 )
                 if not item_info:
-                    db.execute_update("ROLLBACK")
-                    return False
+                    return self._rollback_with_reason(
+                        db,
+                        "NEW_ORDER missing item row",
+                        w_id=w_id,
+                        d_id=d_id,
+                        c_id=c_id,
+                        o_id=o_id,
+                        ol_number=ol_number,
+                        item_id=ol_i_id[ol_number - 1],
+                    )
 
                 i_price, i_name, i_data = item_info[0]
                 i_price = float(i_price)
@@ -278,8 +331,17 @@ class TransactionExecutor:
                     (ol_i_id[ol_number - 1], ol_supply_w_id[ol_number - 1]),
                 )
                 if not stock_info:
-                    db.execute_update("ROLLBACK")
-                    return False
+                    return self._rollback_with_reason(
+                        db,
+                        "NEW_ORDER missing stock row",
+                        w_id=w_id,
+                        d_id=d_id,
+                        c_id=c_id,
+                        o_id=o_id,
+                        ol_number=ol_number,
+                        item_id=ol_i_id[ol_number - 1],
+                        supply_w_id=ol_supply_w_id[ol_number - 1],
+                    )
 
                 s_quantity, s_dist, s_ytd, s_order_cnt, s_remote_cnt, s_data = (
                     stock_info[0]
@@ -348,7 +410,10 @@ class TransactionExecutor:
             return True
 
         except Exception as e:
-            logger.error(f"New order transaction failed: {e}")
+            logger.error(
+                f"New order transaction failed: {e}; "
+                f"w_id={w_id}, d_id={d_id}, c_id={c_id}, ol_cnt={ol_cnt}"
+            )
             db.execute_update("ROLLBACK")
             return False
 
@@ -359,8 +424,12 @@ class TransactionExecutor:
         c_w_id, c_d_id = self.data_generator.get_payment_customer_warehouse(w_id, d_id)
         amount = self.data_generator.get_random_payment_amount()
 
+        # Reduced CSV datasets often do not preserve the standard TPC-C last-name
+        # distribution. In lightweight mode, always use customer ID lookup.
+        use_customer_id_lookup = self.lightweight or random.random() < 0.6
+
         # Determine customer selection method (60% by ID, 40% by last name)
-        if random.random() < 0.6:
+        if use_customer_id_lookup:
             c_id = self.data_generator.get_random_customer_id()
             customer_query = c_id
             by_id = True
@@ -380,8 +449,16 @@ class TransactionExecutor:
             )
 
             if not warehouse_result:
-                db.execute_update("ROLLBACK")
-                return False
+                return self._rollback_with_reason(
+                    db,
+                    "PAYMENT missing warehouse row",
+                    w_id=w_id,
+                    d_id=d_id,
+                    c_w_id=c_w_id,
+                    c_d_id=c_d_id,
+                    by_id=by_id,
+                    customer_query=customer_query,
+                )
 
             w_name, w_street_1, w_street_2, w_city, w_state, w_zip, w_ytd = (
                 warehouse_result[0]
@@ -399,8 +476,16 @@ class TransactionExecutor:
             )
 
             if not district_result:
-                db.execute_update("ROLLBACK")
-                return False
+                return self._rollback_with_reason(
+                    db,
+                    "PAYMENT missing district row",
+                    w_id=w_id,
+                    d_id=d_id,
+                    c_w_id=c_w_id,
+                    c_d_id=c_d_id,
+                    by_id=by_id,
+                    customer_query=customer_query,
+                )
 
             d_name, d_street_1, d_street_2, d_city, d_state, d_zip, d_ytd = (
                 district_result[0]
@@ -431,8 +516,16 @@ class TransactionExecutor:
                 )
 
             if not customer_result:
-                db.execute_update("ROLLBACK")
-                return False
+                return self._rollback_with_reason(
+                    db,
+                    "PAYMENT missing customer row",
+                    w_id=w_id,
+                    d_id=d_id,
+                    c_w_id=c_w_id,
+                    c_d_id=c_d_id,
+                    by_id=by_id,
+                    customer_query=customer_query,
+                )
 
             # Handle multiple customers with same last name (select middle one)
             if by_id:
@@ -522,7 +615,11 @@ class TransactionExecutor:
             return True
 
         except Exception as e:
-            logger.error(f"Payment transaction failed: {e}")
+            logger.error(
+                f"Payment transaction failed: {e}; "
+                f"w_id={w_id}, d_id={d_id}, c_w_id={c_w_id}, c_d_id={c_d_id}, "
+                f"by_id={by_id}, customer_query={customer_query}, amount={amount}"
+            )
             db.execute_update("ROLLBACK")
             return False
 

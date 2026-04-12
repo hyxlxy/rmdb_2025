@@ -30,11 +30,27 @@ class TpccExecutor:
         """
         self.db = db_connection
         self.scale_factor = scale_factor
+        self.lightweight = lightweight
         self.schema_manager = SchemaManager(db_connection)
         self.data_generator = TpccDataGenerator(scale_factor, lightweight=lightweight)
         self.load_executor = LoadExecutor(db_connection)
         self.consistency_checker = ConsistencyCheckExecutor(db_connection, scale_factor)
-        self.transaction_executor = TransactionExecutor(db_connection, scale_factor)
+        self.transaction_executor = TransactionExecutor(
+            db_connection, scale_factor, lightweight=lightweight
+        )
+
+    def _sync_generator_cardinalities_from_csv(self) -> None:
+        """Sync benchmark key generation ranges with loaded CSV table counts."""
+        table_counts = self.consistency_checker._get_expected_table_counts()
+        self.data_generator.configure_from_table_counts(table_counts)
+        self.transaction_executor.data_generator.configure_from_table_counts(table_counts)
+        logger.info(
+            "Adjusted benchmark generator to loaded CSV counts: "
+            f"items={self.transaction_executor.data_generator.ITEMS_TOTAL}, "
+            f"customers/district={self.transaction_executor.data_generator.CUSTOMERS_PER_DISTRICT}, "
+            f"orders/district={self.transaction_executor.data_generator.ORDERS_PER_DISTRICT}, "
+            f"new_orders/district={self.transaction_executor.data_generator.NEW_ORDERS_PER_DISTRICT}"
+        )
 
     def initialize_database(self) -> None:
         """Initialize database with schema and data."""
@@ -70,6 +86,7 @@ class TpccExecutor:
         """
         logger.info(f"Loading TPC-C data from CSV files in {csv_data_dir}")
         self.consistency_checker.set_csv_data_dir(csv_data_dir)
+        self._sync_generator_cardinalities_from_csv()
         self.load_executor.load_all_data_csv(csv_data_dir)
         logger.info("TPC-C data loaded successfully from CSV files")
 
