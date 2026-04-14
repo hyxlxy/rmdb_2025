@@ -1,4 +1,9 @@
 before_code_generation:
+  - name: load_repo_structure_reference
+    instruction: >
+      在做 RMDB 内核修改前，先读 references/rmdb_project_map.md 获取全局地图，
+      再按任务需要继续读 storage_system_record、execution_optimizer_aggregation、index_btree、
+      transaction_recovery 中对应的详细 reference，不能只停留在概览层。
   - name: analyze_architecture_layers
     instruction: >
       必须先分析本次需求落在 storage、record、index、execution、transaction、recovery 中的哪一层，
@@ -21,3 +26,18 @@ before_code_generation:
   - name: enforce_mvp_scope
     instruction: >
       必须检查方案是否是最小可实现版本；若一次改动跨越多个子系统或包含未来功能，必须收缩范围后再生成代码。
+  - name: capture_new_repo_facts
+    instruction: >
+      如果在阅读或实现过程中发现 skill 尚未记录、但会影响后续实现判断的新函数、新结构、新刷盘点、
+      新调用链或新 benchmark 假设，必须记下并在本次任务结束前补进对应 reference。
+
+before_final_response:
+  - name: maintain_kernel_skill_reference
+    instruction: >
+      如果本次改动涉及 RMDB 的结构性变化，例如模块边界、调用链、页/文件头布局、事务语义、
+      执行器构建流程、聚合实现、B+ 树维护逻辑、刷盘路径或 TPCC 相关核心架构假设，
+      必须先更新 skill 中对应的参考文档与约束，再结束任务。
+  - name: remove_stale_skill_facts
+    instruction: >
+      如果本次任务确认某个函数、结构、路径、优化逻辑或 benchmark 假设已删除、失效或不再可信，
+      必须同步删除或改写 skill 中对应内容，避免保留幻觉信息。

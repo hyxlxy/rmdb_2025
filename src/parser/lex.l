@@ -9,6 +9,7 @@
     /* enable location */
 %option bison-bridge
 %option bison-locations
+%option reentrant
 
 %{
 #include "ast.h"

@@ -149,57 +149,28 @@ bool LockManager::lock_exclusive_on_record(Transaction *txn, const Rid &rid, int
                 // 如果持有S锁，准备升级
                 if (it->lock_mode_ == LockMode::SHARED)
                 {
-                    // 检查是否有其他事务持有锁
-                    bool can_upgrade = true;
-                    for (auto &other_req : lock_queue.request_queue_)
-                    {
-                        if (other_req.granted_ && other_req.txn_id_ != txn->get_transaction_id())
-                        {
-                            can_upgrade = false;
-                            break;
-                        }
-                    }
-                    if (can_upgrade)
-                    {
-                        it->lock_mode_ = LockMode::EXLUCSIVE; // 升级成功
-                        return true;
-                    }
-                    else
-                    {
-                        txn->set_state(TransactionState::ABORTED);
-                        return false; // 无法升级
-                    }
+                    txn->set_state(TransactionState::ABORTED);
+                    return false;
                 }
             }
         }
     }
 
-    // 检查是否有任何其他事务持有锁
-    bool has_conflict = false;
     for (auto &req : lock_queue.request_queue_)
     {
         if (req.granted_ && req.txn_id_ != txn->get_transaction_id())
         {
-            has_conflict = true;
-            break;
+            txn->set_state(TransactionState::ABORTED);
+            return false;
         }
     }
 
-    if (!has_conflict)
-    {
-        // 可以获得排他锁
-        lock_queue.request_queue_.emplace_back(txn->get_transaction_id(), LockMode::EXLUCSIVE);
-        lock_queue.request_queue_.back().granted_ = true;
-        txn->get_lock_set()->insert(lock_data_id);
-        return true;
-    }
-    else
-    {
-        // 有锁冲突，无法获得排他锁
-        txn->set_state(TransactionState::ABORTED);
-        return false;
-    }
+    lock_queue.request_queue_.emplace_back(txn->get_transaction_id(), LockMode::EXLUCSIVE);
+    lock_queue.request_queue_.back().granted_ = true;
+    txn->get_lock_set()->insert(lock_data_id);
+    return true;
 }
+
 
 /**
  * @description: 申请表级读锁
@@ -390,6 +361,10 @@ bool LockManager::unlock(Transaction *txn, LockDataId lock_data_id)
     if (lock_queue.request_queue_.empty())
     {
         lock_table_.erase(temp);
+    }
+    else
+    {
+        lock_queue.cv_.notify_all();
     }
 
     return true;

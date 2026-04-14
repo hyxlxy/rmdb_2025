@@ -57,7 +57,6 @@ auto recovery = std::make_unique<RecoveryManager>(disk_manager.get(), buffer_poo
 auto mvcc_record_manager = std::make_unique<MVCCRecordManager>(txn_manager.get());
 auto portal = std::make_unique<Portal>(sm_manager.get());
 auto analyze = std::make_unique<Analyze>(sm_manager.get());
-pthread_mutex_t *buffer_mutex;
 pthread_mutex_t *sockfd_mutex;
 
 static jmp_buf jmpbuf;
@@ -113,6 +112,15 @@ void SetTransaction(txn_id_t *txn_id, Context *context)
         context->txn_ = txn_manager->get_transaction(*txn_id);
         if (context->txn_ != nullptr)
         {
+            if (context->txn_->get_txn_mode())
+            {
+                // TPC-C 事务是通过多条独立 SQL 交互推进的。
+                // 对显式事务按语句刷新读时间戳，避免整笔事务长期持有旧快照，
+                // 在热点行更新上放大已提交版本冲突。
+                timestamp_t statement_read_ts = txn_manager->get_next_timestamp();
+                context->txn_->set_read_ts(statement_read_ts);
+                context->txn_->set_start_ts(statement_read_ts);
+            }
             return;
         }
     }
@@ -193,11 +201,22 @@ void *client_handler(void *sock_fd)
             SetTransaction(&txn_id, context);
         }
 
-        // 用于判断是否已经调用了yy_delete_buffer来删除buf
-        bool finish_analyze = false;
-        pthread_mutex_lock(buffer_mutex);
-        YY_BUFFER_STATE buf = yy_scan_string(data_recv);
-        if (yyparse() == 0)
+        YY_BUFFER_STATE buf = nullptr;
+        yyscan_t scanner = nullptr;
+        bool scanner_initialized = yylex_init(&scanner) == 0;
+        if (!scanner_initialized)
+        {
+            std::string str = "parser init error\n";
+            memcpy(data_send, str.c_str(), str.length());
+            data_send[str.length()] = '\0';
+            offset = str.length();
+        }
+        else
+        {
+            buf = yy_scan_string(data_recv, scanner);
+        }
+
+        if (scanner_initialized && yyparse(scanner) == 0)
         {
             if (ast::parse_tree != nullptr)
             {
@@ -227,9 +246,6 @@ void *client_handler(void *sock_fd)
                         // analyze and rewrite
                         std::shared_ptr<Query> query =
                             analyze->do_analyze(ast::parse_tree);
-                        yy_delete_buffer(buf);
-                        finish_analyze = true;
-                        pthread_mutex_unlock(buffer_mutex);
                         // 优化器
                         std::shared_ptr<Plan> plan = optimizer->plan_query(query, context);
                         // portal
@@ -241,7 +257,9 @@ void *client_handler(void *sock_fd)
                 catch (TransactionAbortException &e)
                 {
                     // 事务需要回滚，需要把abort信息返回给客户端并写入output.txt文件中
-                    std::string str = "abort\n";
+                    std::string reason = e.GetInfo();
+                    reason.erase(std::remove(reason.begin(), reason.end(), '\n'), reason.end());
+                    std::string str = "abort: " + reason + "\n";
                     memcpy(data_send, str.c_str(), str.length());
                     data_send[str.length()] = '\0';
                     offset = str.length();
@@ -336,10 +354,14 @@ void *client_handler(void *sock_fd)
                 outfile.close();
             }
         }
-        if (finish_analyze == false)
+
+        if (buf != nullptr && scanner_initialized)
         {
-            yy_delete_buffer(buf);
-            pthread_mutex_unlock(buffer_mutex);
+            yy_delete_buffer(buf, scanner);
+        }
+        if (scanner_initialized)
+        {
+            yylex_destroy(scanner);
         }
         // future TODO: 格式化 sql_handler.result, 传给客户端
         // send result with fixed format, use protobuf in the future
@@ -363,9 +385,7 @@ void *client_handler(void *sock_fd)
 void start_server()
 {
     // init mutex
-    buffer_mutex = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t));
     sockfd_mutex = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t));
-    pthread_mutex_init(buffer_mutex, nullptr);
     pthread_mutex_init(sockfd_mutex, nullptr);
 
     int sockfd_server;

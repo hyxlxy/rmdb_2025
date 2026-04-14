@@ -1,4 +1,9 @@
 before_code_generation:
+  - name: load_repo_performance_reference
+    instruction: >
+      在做 RMDB 性能分析前，先读 references/rmdb_performance_map.md 获取全局性能地图，
+      再按瓶颈类型继续读 flush_contention_hotspots 或 executor_optimizer_perf_notes，
+      确认 profiling 路径、刷盘点、索引扫描语义和热点解释规则。
   - name: prefer_reproducible_profile_workflow
     instruction: >
       如果用户要求分析 RMDB 在 TPC-C 路径上的性能，优先复用固定 profiling 流程：优先抓服务端，
@@ -21,8 +26,21 @@ before_code_generation:
   - name: no_claim_without_evidence
     instruction: >
       如果没有性能证据，禁止直接宣称优化有效；必须给出验证方法与预期收益机制。
+  - name: capture_new_performance_facts
+    instruction: >
+      如果本次阅读、profile 或实现发现 skill 尚未记录的新热点、新刷盘点、新 contention 点、
+      新 workload 约束或新执行器行为，必须在结束前补进对应 performance reference。
 
 before_final_response:
+  - name: maintain_performance_skill_reference
+    instruction: >
+      如果本次修改改变了 RMDB 的 profiling 工作流、parser 并发模型、benchmark 语义、
+      index scan 语义、事务冲突解释、刷盘策略、聚合/分组物化方式或其他性能相关结构，
+      必须先更新 skill 中对应的性能参考内容。
+  - name: remove_stale_performance_facts
+    instruction: >
+      如果本次任务确认某个性能解释、热点归因、优化路径、历史实验或 benchmark 假设已经不成立，
+      必须同步删除或改写 skill 中对应内容，避免留下过期结论。
   - name: explain_why_faster
     instruction: >
       检查是否解释了为什么更快，必须落到算法、内存、cache、拷贝、锁、IO 或计划质量层面。

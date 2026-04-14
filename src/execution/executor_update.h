@@ -102,6 +102,14 @@ public:
     {
         for (auto &rid : rids_)
         {
+            if (context_ && context_->txn_ && context_->lock_mgr_)
+            {
+                if (!context_->lock_mgr_->lock_exclusive_on_record(context_->txn_, rid, fh_->GetFd()))
+                {
+                    throw TransactionAbortException(context_->txn_->get_transaction_id(), AbortReason::WRITE_WRITE_CONFLICT);
+                }
+            }
+
             auto updated_record = get_record_mvcc(fh_, rid, context_, sm_manager_);
             if (!updated_record)
             {

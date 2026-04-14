@@ -4,9 +4,10 @@
 #include <iostream>
 #include <memory>
 
-int yylex(YYSTYPE *yylval, YYLTYPE *yylloc);
+int yylex(YYSTYPE *yylval, YYLTYPE *yylloc, void *yyscanner);
 
-void yyerror(YYLTYPE *locp, const char* s) {
+void yyerror(YYLTYPE *locp, void *yyscanner, const char* s) {
+    (void)yyscanner;
     std::cerr << "Parser Error at line " << locp->first_line << " column " << locp->first_column << ": " << s << std::endl;
 }
 
@@ -19,6 +20,8 @@ using namespace ast;
 %locations
 // enable verbose syntax error message
 %define parse.error verbose
+%parse-param { void *yyscanner }
+%lex-param { void *yyscanner }
 
 // keywords
 %token SHOW TABLES CREATE TABLE DROP DESC INSERT INTO VALUES DELETE FROM ASC ORDER BY SUM HAVING ON COUNT MIN MAX AVG LOAD OUTPUT_FILE OFF EXPLAIN

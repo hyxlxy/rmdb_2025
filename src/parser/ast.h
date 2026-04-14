@@ -447,7 +447,7 @@ namespace ast
         std::vector<std::shared_ptr<OrderBy>> sv_orderbys;
     };
 
-    extern std::shared_ptr<ast::TreeNode> parse_tree;
+    extern thread_local std::shared_ptr<ast::TreeNode> parse_tree;
 
 }
 

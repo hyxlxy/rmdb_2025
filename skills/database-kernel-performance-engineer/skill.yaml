@@ -10,6 +10,7 @@ description: >
 
 capabilities:
   - Identify database-kernel bottlenecks in CPU, memory, cache locality, branch behavior, lock contention, IO, logging, and query planning
+  - Reuse the live RMDB performance map so recurring optimization turns do not spend their budget re-reading the same structure
   - Analyze hotspot paths in RMDB, including parser/analyze/optimizer/portal/executor flows and storage/index critical paths
   - Evaluate memory layout, pointer chasing, allocation frequency, copy count, and cache-friendliness of core data structures
   - Optimize B+ tree lookup/update paths, page layout, record layout, scan loops, filter loops, and projection pipelines
@@ -19,6 +20,7 @@ capabilities:
   - Distinguish throughput optimization, latency optimization, concurrency optimization, and IO optimization
   - Propose 1 to 3 minimal high-impact changes instead of broad speculative rewrites
   - Explain why an optimization is expected to be faster, under which workload it applies, and what regression risk it introduces
+  - Maintain the skill's RMDB performance references after structural optimization changes so later turns inherit updated performance context
 
 constraints:
   - 必须优先优化热点路径，而不是非关键路径
@@ -35,6 +37,7 @@ constraints:
   - Must distinguish whether a bottleneck is CPU-bound, memory-bound, lock-bound, IO-bound, or plan-quality-bound
   - Must not recommend complex mechanisms such as vectorization, caching, or new indexing paths without explaining tradeoffs and fit
   - Must not optimize around assumptions that are not supported by code structure, plan shape, or measurement strategy
+  - If profiling workflow, benchmark semantics, parser concurrency, index-scan semantics, or other performance-relevant structure changes, must update the skill references in the same change
 
 preferred_languages:
   - C++

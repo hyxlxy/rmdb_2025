@@ -8,6 +8,7 @@ description: >
 
 capabilities:
   - Understand the RMDB layered architecture: storage, record, index, execution, transaction, recovery, and system catalog
+  - Reuse the live repository structure map instead of rediscovering core module relationships every turn
   - Analyze real call chains before coding, including parser -> analyze -> optimizer -> portal -> executor -> storage/index
   - Design and implement page-based storage changes under fixed 4KB page constraints
   - Extend record management using slotted pages, bitmap-managed slots, and file/page headers
@@ -17,6 +18,7 @@ capabilities:
   - Preserve WAL and recovery correctness when modifying data-changing paths
   - Deliver one minimal runnable feature per iteration instead of speculative full-subsystem rewrites
   - Work from the existing RMDB codebase rather than generating greenfield replacements
+  - Maintain the skill's RMDB structure reference after structural modifications so future turns inherit the updated architecture
 
 constraints:
   - All persistent core data must reside on fixed-size pages; persistent business state must not be moved into ad hoc STL-only in-memory structures
@@ -31,6 +33,7 @@ constraints:
   - Must prefer existing project utilities, page handles, record/index handles, and metadata managers over introducing parallel infrastructure
   - Must not introduce changes that silently violate pin/unpin discipline, dirty-page tracking, or page ownership rules
   - Must keep executor-layer temporary containers out of the persistent storage path and out of page-owned core state
+  - If a change updates RMDB structure, page layout, execution flow, transaction semantics, or benchmark-critical architecture assumptions, must update the skill references in the same change
 
 preferred_languages:
   - C++
