@@ -37,6 +37,11 @@ before_final_response:
       如果本次改动涉及 RMDB 的结构性变化，例如模块边界、调用链、页/文件头布局、事务语义、
       执行器构建流程、聚合实现、B+ 树维护逻辑、刷盘路径或 TPCC 相关核心架构假设，
       必须先更新 skill 中对应的参考文档与约束，再结束任务。
+  - name: retire_or_explain_old_paths
+    instruction: >
+      如果本次任务添加、重写或替换了某条主路径功能，必须同步处理旧实现：
+      删除已失效逻辑，或明确收缩其生效范围，或写清保留原因；
+      不允许留下语义冲突的双主路径实现。
   - name: remove_stale_skill_facts
     instruction: >
       如果本次任务确认某个函数、结构、路径、优化逻辑或 benchmark 假设已删除、失效或不再可信，

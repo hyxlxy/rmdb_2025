@@ -34,6 +34,8 @@ constraints:
   - Must not introduce changes that silently violate pin/unpin discipline, dirty-page tracking, or page ownership rules
   - Must keep executor-layer temporary containers out of the persistent storage path and out of page-owned core state
   - If a change updates RMDB structure, page layout, execution flow, transaction semantics, or benchmark-critical architecture assumptions, must update the skill references in the same change
+  - If a feature is rewritten or structurally replaced, must also handle the old implementation by deleting it, tightening its scope, or clearly documenting why it remains; do not leave two conflicting main paths alive
+  - Must not keep stale fallback logic, dead branches, or historical experiments in the live path without an explicit reason
 
 preferred_languages:
   - C++

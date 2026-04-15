@@ -101,6 +101,7 @@ file_name ((\/)|((\.\.?\/)+))[a-zA-Z0-9_]+(\/[a-zA-Z0-9_]+)*\.[a-zA-Z0-9_]+|[a-z
 "MIN"   { return MIN; }
 "MAX"   { return MAX; }
 "AVG"   { return AVG; }
+"EXPLAIN" { return EXPLAIN; }
 "ENABLE_NESTLOOP" { return ENABLE_NESTLOOP; }
 "ENABLE_SORTMERGE" { return ENABLE_SORTMERGE; }
 "OUTPUT_FILE" {return OUTPUT_FILE; }

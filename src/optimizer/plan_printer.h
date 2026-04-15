@@ -117,7 +117,19 @@ private:
                                const std::unordered_map<std::string, std::string>& table_to_alias = {}) {
         if (auto scan_plan = std::dynamic_pointer_cast<ScanPlan>(plan)) {
             // 始终显示真实表名，不使用别名
-            oss << "Scan(table=" << scan_plan->tab_name_ << ")\n";
+            const char *scan_type = scan_plan->tag == T_IndexScan ? "IndexScan" : "SeqScan";
+            oss << scan_type << "(table=" << scan_plan->tab_name_;
+            if (scan_plan->tag == T_IndexScan && !scan_plan->index_col_names_.empty()) {
+                oss << ", index=[";
+                for (size_t i = 0; i < scan_plan->index_col_names_.size(); ++i) {
+                    if (i > 0) {
+                        oss << ",";
+                    }
+                    oss << scan_plan->index_col_names_[i];
+                }
+                oss << "]";
+            }
+            oss << ")\n";
         }
     }
 

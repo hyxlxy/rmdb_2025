@@ -209,6 +209,29 @@ void QlManager::run_cmd_utility(std::shared_ptr<Plan> plan, txn_id_t *txn_id, Co
         }
         }
     }
+    else if (auto x = std::dynamic_pointer_cast<ExplainPlan>(plan))
+    {
+        std::shared_ptr<Plan> printable_plan = x->inner_plan_;
+        if (auto dml_plan = std::dynamic_pointer_cast<DMLPlan>(printable_plan))
+        {
+            if (dml_plan->subplan_ != nullptr)
+            {
+                printable_plan = dml_plan->subplan_;
+            }
+        }
+
+        std::string plan_str = PlanPrinter::print_plan(printable_plan);
+        memcpy(context->data_send_ + *(context->offset_), plan_str.c_str(), plan_str.length());
+        *(context->offset_) += plan_str.length();
+
+        if (output_file_enabled)
+        {
+            std::fstream outfile;
+            outfile.open("output.txt", std::ios::out | std::ios::app);
+            outfile << plan_str;
+            outfile.close();
+        }
+    }
 }
 // 执行select语句，select语句的输出除了需要返回客户端外，还需要写入output.txt文件中
 void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, std::vector<TabCol> sel_cols,

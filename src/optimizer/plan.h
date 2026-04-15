@@ -39,6 +39,7 @@ typedef enum PlanTag
     T_DropIndex,
     T_CreateStaticCheckpoint,
     T_SetKnob,
+    T_Explain,
     T_Insert,
     T_Update,
     T_Delete,
@@ -268,6 +269,18 @@ public:
 
     ast::SetKnobType set_knob_type_;
     bool bool_value_;
+};
+
+class ExplainPlan : public Plan
+{
+public:
+    explicit ExplainPlan(std::shared_ptr<Plan> inner_plan)
+    {
+        Plan::tag = T_Explain;
+        inner_plan_ = std::move(inner_plan);
+    }
+
+    std::shared_ptr<Plan> inner_plan_;
 };
 
 class plannerInfo

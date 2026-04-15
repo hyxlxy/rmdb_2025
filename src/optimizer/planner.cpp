@@ -14,7 +14,9 @@ See the Mulan PSL v2 for more details. */
 #include "../common/tpcc_config.h"
 
 #include <memory>
+#include <queue>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "execution/executor_delete.h"
 #include "execution/executor_index_scan.h"
@@ -25,6 +27,171 @@ See the Mulan PSL v2 for more details. */
 #include "execution/executor_update.h"
 #include "index/ix.h"
 #include "record_printer.h"
+
+namespace {
+
+std::string make_col_key(const TabCol &col)
+{
+    return col.tab_name + "." + col.col_name;
+}
+
+bool same_column(const TabCol &lhs, const TabCol &rhs)
+{
+    return lhs.tab_name == rhs.tab_name && lhs.col_name == rhs.col_name;
+}
+
+bool same_value(const Value &lhs, const Value &rhs)
+{
+    if (lhs.type != rhs.type)
+    {
+        return false;
+    }
+    switch (lhs.type)
+    {
+    case TYPE_INT:
+        return lhs.int_val == rhs.int_val;
+    case TYPE_FLOAT:
+        return lhs.float_val == rhs.float_val;
+    case TYPE_STRING:
+        return lhs.str_val == rhs.str_val;
+    default:
+        return false;
+    }
+}
+
+bool same_condition(const Condition &lhs, const Condition &rhs)
+{
+    if (!same_column(lhs.lhs_col, rhs.lhs_col) || lhs.op != rhs.op || lhs.is_rhs_val != rhs.is_rhs_val)
+    {
+        return false;
+    }
+    if (lhs.is_rhs_val)
+    {
+        return same_value(lhs.rhs_val, rhs.rhs_val);
+    }
+    return same_column(lhs.rhs_col, rhs.rhs_col);
+}
+
+void propagate_equality_constants_in_place(std::shared_ptr<Query> query)
+{
+    if (!query)
+    {
+        return;
+    }
+
+    std::unordered_map<std::string, TabCol> key_to_col;
+    std::unordered_map<std::string, std::vector<std::string>> adjacency;
+    std::unordered_map<std::string, std::vector<Value>> constants_by_col;
+
+    for (const auto &condition : query->conds)
+    {
+        if (condition.op != OP_EQ)
+        {
+            continue;
+        }
+
+        const std::string lhs_key = make_col_key(condition.lhs_col);
+        key_to_col[lhs_key] = condition.lhs_col;
+
+        if (condition.is_rhs_val)
+        {
+            constants_by_col[lhs_key].push_back(condition.rhs_val);
+            continue;
+        }
+
+        const std::string rhs_key = make_col_key(condition.rhs_col);
+        key_to_col[rhs_key] = condition.rhs_col;
+        adjacency[lhs_key].push_back(rhs_key);
+        adjacency[rhs_key].push_back(lhs_key);
+    }
+
+    std::unordered_set<std::string> visited;
+    std::vector<Condition> propagated;
+
+    for (const auto &[start_key, start_col] : key_to_col)
+    {
+        if (visited.count(start_key) > 0)
+        {
+            continue;
+        }
+
+        std::queue<std::string> pending;
+        std::vector<std::string> component;
+        std::vector<Value> component_constants;
+        pending.push(start_key);
+        visited.insert(start_key);
+
+        while (!pending.empty())
+        {
+            std::string current = pending.front();
+            pending.pop();
+            component.push_back(current);
+
+            auto const_it = constants_by_col.find(current);
+            if (const_it != constants_by_col.end())
+            {
+                for (const auto &value : const_it->second)
+                {
+                    bool exists = std::any_of(component_constants.begin(), component_constants.end(),
+                                              [&](const Value &existing) { return same_value(existing, value); });
+                    if (!exists)
+                    {
+                        component_constants.push_back(value);
+                    }
+                }
+            }
+
+            auto adj_it = adjacency.find(current);
+            if (adj_it == adjacency.end())
+            {
+                continue;
+            }
+
+            for (const auto &next : adj_it->second)
+            {
+                if (visited.insert(next).second)
+                {
+                    pending.push(next);
+                }
+            }
+        }
+
+        if (component_constants.empty())
+        {
+            continue;
+        }
+
+        for (const auto &col_key : component)
+        {
+            const TabCol &target_col = key_to_col.at(col_key);
+            for (const auto &value : component_constants)
+            {
+                Condition propagated_cond;
+                propagated_cond.lhs_col = target_col;
+                propagated_cond.op = OP_EQ;
+                propagated_cond.is_rhs_val = true;
+                propagated_cond.rhs_val = value;
+
+                bool already_exists = std::any_of(query->conds.begin(), query->conds.end(),
+                                                  [&](const Condition &existing) {
+                                                      return same_condition(existing, propagated_cond);
+                                                  }) ||
+                                      std::any_of(propagated.begin(), propagated.end(),
+                                                  [&](const Condition &existing) {
+                                                      return same_condition(existing, propagated_cond);
+                                                  });
+                if (!already_exists)
+                {
+                    propagated.push_back(propagated_cond);
+                }
+            }
+        }
+    }
+
+    query->conds.insert(query->conds.end(), propagated.begin(), propagated.end());
+}
+
+} // namespace
 
 // 判断是否需要聚合算子
 static bool need_agg_plan(const std::shared_ptr<Query> &query)
@@ -341,7 +508,10 @@ std::shared_ptr<Query> Planner::logical_optimization(std::shared_ptr<Query> quer
         return query;
     }
 
-    // TODO 实现逻辑优化规则
+    // 在当前主 planner 路径上做简单、通用的等值常量传播：
+    // A = B, B = const => A = const
+    // 仅对 OP_EQ 生效，避免范围/不等式传播带来的语义风险。
+    propagate_equality_constants_in_place(query);
 
     return query;
 }

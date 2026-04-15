@@ -85,6 +85,14 @@ public:
             // Load Plan
             return std::make_shared<LoadPlan>(x->file_name, x->table_name);
         }
+        else if (auto x = std::dynamic_pointer_cast<ast::ExplainStmt>(query->parse))
+        {
+            if (!query->inner_query)
+            {
+                throw RMDBError("EXPLAIN requires an inner statement");
+            }
+            return std::make_shared<ExplainPlan>(planner_->do_planner(query->inner_query, context));
+        }
         else
         {
             return planner_->do_planner(query, context);

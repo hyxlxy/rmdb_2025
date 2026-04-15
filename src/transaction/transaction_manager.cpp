@@ -264,7 +264,10 @@ void TransactionManager::commit(Transaction *txn, LogManager *log_manager)
         // 继续执行，不让日志错误阻止事务提交
     }
     // 8. 从全局事务表中移除事务
-    txn_map.erase(txn->get_transaction_id());
+    {
+        std::unique_lock<std::mutex> lock(latch_);
+        txn_map.erase(txn->get_transaction_id());
+    }
 }
 
 /**
@@ -453,7 +456,10 @@ void TransactionManager::abort(Transaction *txn, LogManager *log_manager)
     }
 
     // 从全局事务表中移除事务
-    txn_map.erase(txn->get_transaction_id());
+    {
+        std::unique_lock<std::mutex> lock(latch_);
+        txn_map.erase(txn->get_transaction_id());
+    }
 
     // 移除调试输出以避免高并发场景下的性能问题
 }

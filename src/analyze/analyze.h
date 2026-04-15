@@ -25,6 +25,7 @@ class Query // 查询
 {
 public:
     std::shared_ptr<ast::TreeNode> parse;
+    std::shared_ptr<Query> inner_query;
     // TODO jointree
     std::shared_ptr<ast::TreeNode> jointree;
     // where条件
@@ -38,6 +39,8 @@ public:
     bool is_semi_join_;
     // 表名
     std::vector<std::string> tables;
+    // 真实表名 -> 别名
+    std::unordered_map<std::string, std::string> tb2alias;
     // update 的set 值
     std::vector<SetClause> set_clauses;
     // insert 的values值

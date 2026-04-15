@@ -45,7 +45,7 @@ WHERE UPDATE SET SELECT INT CHAR FLOAT INDEX AND JOIN EXIT HELP TXN_BEGIN TXN_CO
 %token <sv_str> FILE_NAME
 
 // specify types for non-terminal symbol
-%type <sv_node> stmt dbStmt ddl dml txnStmt setStmt
+%type <sv_node> stmt dbStmt ddl dml txnStmt setStmt explainStmt
 %type <sv_field> field
 %type <sv_fields> fieldList
 %type <sv_type_len> type
@@ -53,10 +53,10 @@ WHERE UPDATE SET SELECT INT CHAR FLOAT INDEX AND JOIN EXIT HELP TXN_BEGIN TXN_CO
 %type <sv_expr> expr agg_expr colItem having_clause compare_expr logical_expr
 %type <sv_val> value
 %type <sv_vals> valueList
-%type <sv_str> tbName colName file_path firsts last first
+%type <sv_str> tbName colName alias file_path firsts last first
 %type <sv_str> file_name
 %type <sv_strs> colNameList
-%type <sv_node> tableList
+%type <sv_node> tableList tableRef
 %type <sv_col> col
 %type <sv_exprs> colList selector groupby_clause
 %type <sv_set_clause> setClause
@@ -110,6 +110,7 @@ stmt:
     |   dml
     |   txnStmt
     |   setStmt
+    |   explainStmt
 
     ;
 
@@ -196,6 +197,13 @@ dml:
     | LOAD file_path INTO tbName
     {
         $$ = std::make_shared<LoadStmt>($2, $4);
+    }
+    ;
+
+explainStmt:
+        EXPLAIN dml
+    {
+        $$ = std::make_shared<ExplainStmt>($2);
     }
     ;
 
@@ -563,25 +571,47 @@ selector:
     ;
 
 tableList:
+        tableRef
+    {
+        $$ = $1;
+    }
+    |   tableList JOIN tableRef ON whereClause
+    {
+        $$ = std::make_shared<JoinExpr>($1, $3, $5, INNER_JOIN);
+    }
+    |   tableList JOIN tableRef
+    {
+        $$ = std::make_shared<JoinExpr>($1, $3, std::vector<std::shared_ptr<BinaryExpr>>{}, INNER_JOIN);
+    }
+    |   tableList SEMI JOIN tableRef ON whereClause
+    {
+        $$ = std::make_shared<JoinExpr>($1, $4, $6, SEMI_JOIN);
+    }
+    |   tableList ',' tableRef
+    {
+        $$ = std::make_shared<JoinExpr>($1, $3, std::vector<std::shared_ptr<BinaryExpr>>{}, INNER_JOIN);
+    }
+    ;
+
+tableRef:
         tbName
     {
         $$ = std::make_shared<TableRef>($1);
     }
-    |   tableList JOIN tbName ON whereClause
+    |   tbName AS alias
     {
-        $$ = std::make_shared<JoinExpr>($1,std::make_shared<TableRef>($3),$5,INNER_JOIN);
+        $$ = std::make_shared<TableRef>($1, $3);
     }
-    |   tableList JOIN tbName
+    |   tbName alias
     {
-        $$ = std::make_shared<JoinExpr>($1, std::make_shared<TableRef>($3), std::vector<std::shared_ptr<BinaryExpr>>{}, INNER_JOIN);
+        $$ = std::make_shared<TableRef>($1, $2);
     }
-    |   tableList SEMI JOIN tbName ON whereClause
+    ;
+
+alias:
+        IDENTIFIER
     {
-        $$ = std::make_shared<JoinExpr>($1,std::make_shared<TableRef>($4),$6,SEMI_JOIN);
-    }
-    |   tableList ',' tbName
-    {
-        $$ = std::make_shared<JoinExpr>($1, std::make_shared<TableRef>($3), std::vector<std::shared_ptr<BinaryExpr>>{}, INNER_JOIN);
+        $$ = $1;
     }
     ;
 

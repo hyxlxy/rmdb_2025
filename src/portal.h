@@ -80,6 +80,10 @@ public:
         {
             return std::make_shared<PortalStmt>(PORTAL_LOAD, std::vector<TabCol>(), std::unique_ptr<AbstractExecutor>(), plan);
         }
+        else if (auto x = std::dynamic_pointer_cast<ExplainPlan>(plan))
+        {
+            return std::make_shared<PortalStmt>(PORTAL_CMD_UTILITY, std::vector<TabCol>(), std::unique_ptr<AbstractExecutor>(), plan);
+        }
         else if (auto x = std::dynamic_pointer_cast<DMLPlan>(plan))
         {
             switch (x->tag)

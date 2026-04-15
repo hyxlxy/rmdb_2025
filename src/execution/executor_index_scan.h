@@ -255,13 +255,12 @@ public:
         }
         lower = ih->lower_bound(lower_key);
         upper = ih->upper_bound(upper_key);
+        scan_ = std::make_unique<IxScan>(ih, lower, upper, sm_manager_->get_bpm());
         // 使用 std::vector<char> 管理内存，无需手动释放
 
         // 保留所有原始where条件进行最终过滤，确保结果正确性
         // 索引范围查询只是预过滤，最终还需要条件过滤
         fed_conds_ = raw_conds_;
-
-        scan_ = std::make_unique<IxScan>(ih, lower, upper, sm_manager_->get_bpm());
 
         // 总是进行条件过滤，确保结果正确性
         while (!scan_->is_end())

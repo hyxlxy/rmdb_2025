@@ -2,6 +2,8 @@
 build/
 bin/
 参考1/
+参考3/
+rmdb1-tpcc_test/
 build-gprof/
 lib/
 *.o

@@ -13,6 +13,22 @@ See the Mulan PSL v2 for more details. */
 #include <unistd.h>
 #include <set>
 
+namespace {
+
+bool slot_is_occupied(RmFileHandle *fh, const Rid &rid)
+{
+        if (fh->get_file_hdr().num_pages <= rid.page_no)
+        {
+                return false;
+        }
+        auto page_handle = fh->fetch_page_handle(rid.page_no);
+        bool occupied = Bitmap::is_set(page_handle.bitmap, rid.slot_no);
+        fh->get_bpm()->unpin_page(page_handle.page->get_page_id(), false);
+        return occupied;
+}
+
+}
+
 /**
  * @description: analyze阶段，需要获得脏页表（DPT）和未完成的事务列表（ATT）
  */
@@ -239,8 +255,13 @@ void RecoveryManager::redo()
                                 buffer_pool_manager_->unpin_page(new_file_hand.page->get_page_id(), true);
                         }
 
-                        // 在恢复过程中，我们直接插入记录，不需要特殊的Context
-                        fh->insert_record(insert_log->rid_, insert_log->insert_value_.data);
+                        // redo 必须具备幂等性。日志可能在数据页已落盘后再次被扫描到，
+                        // 如果目标 slot 已经被占用，说明这条 INSERT 至少已在堆表中生效过，
+                        // 此时不应再次插入，否则会在恢复启动时直接崩溃。
+                        if (!slot_is_occupied(fh, insert_log->rid_))
+                        {
+                                fh->insert_record(insert_log->rid_, insert_log->insert_value_.data);
+                        }
 
                         // 立即刷新页面到磁盘
                         buffer_pool_manager_->flush_page(PageId{fh->GetFd(), insert_log->rid_.page_no});
@@ -482,7 +503,10 @@ void RecoveryManager::undo()
                                         auto new_page_handl = fh->create_new_page_handle();
                                         buffer_pool_manager_->unpin_page(new_page_handl.page->get_page_id(), true);
                                 }
-                                fh->insert_record(delete_log->rid_, delete_log->delete_value_.data);
+                                if (!slot_is_occupied(fh, delete_log->rid_))
+                                {
+                                        fh->insert_record(delete_log->rid_, delete_log->delete_value_.data);
+                                }
                                 Rid rid = delete_log->rid_;
                                 for (auto &index : sm_manager_->db_.get_table(tab_name).indexes)
                                 {
@@ -572,4 +596,3 @@ void RecoveryManager::undo()
             sm_manager_->set_check_point();
         }
 }
-

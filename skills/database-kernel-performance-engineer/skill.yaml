@@ -38,6 +38,8 @@ constraints:
   - Must not recommend complex mechanisms such as vectorization, caching, or new indexing paths without explaining tradeoffs and fit
   - Must not optimize around assumptions that are not supported by code structure, plan shape, or measurement strategy
   - If profiling workflow, benchmark semantics, parser concurrency, index-scan semantics, or other performance-relevant structure changes, must update the skill references in the same change
+  - If an optimization replaces an old hot path or conflict path, must also remove or constrain the superseded implementation instead of leaving ambiguous dual behavior behind
+  - Must not keep stale performance hacks, abandoned experiments, or contradictory fast paths in the live code path without explicit justification
 
 preferred_languages:
   - C++

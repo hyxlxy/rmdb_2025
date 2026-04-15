@@ -37,6 +37,10 @@ before_final_response:
       如果本次修改改变了 RMDB 的 profiling 工作流、parser 并发模型、benchmark 语义、
       index scan 语义、事务冲突解释、刷盘策略、聚合/分组物化方式或其他性能相关结构，
       必须先更新 skill 中对应的性能参考内容。
+  - name: retire_or_explain_old_perf_paths
+    instruction: >
+      如果本次性能优化替换了旧热点路径、旧冲突处理逻辑或旧 fast path，
+      必须同步删除、收缩或明确注释旧实现，避免新旧行为同时生效、互相干扰或污染后续判断。
   - name: remove_stale_performance_facts
     instruction: >
       如果本次任务确认某个性能解释、热点归因、优化路径、历史实验或 benchmark 假设已经不成立，

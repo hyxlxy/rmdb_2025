@@ -172,6 +172,13 @@ namespace ast
     {
     };
 
+    struct ExplainStmt : public TreeNode
+    {
+        std::shared_ptr<TreeNode> stmt;
+
+        explicit ExplainStmt(std::shared_ptr<TreeNode> stmt_) : stmt(std::move(stmt_)) {}
+    };
+
     struct Expr : public TreeNode
     {
     };

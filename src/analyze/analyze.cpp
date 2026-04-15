@@ -23,6 +23,113 @@ void extract_table_names(const std::shared_ptr<ast::TreeNode> &node, std::vector
     }
 }
 
+void extract_table_aliases(const std::shared_ptr<ast::TreeNode> &node,
+                           std::unordered_map<std::string, std::string> &alias_to_table,
+                           std::unordered_map<std::string, std::string> &table_to_alias)
+{
+    if (auto tref = std::dynamic_pointer_cast<ast::TableRef>(node))
+    {
+        if (!tref->alias.empty())
+        {
+            if (alias_to_table.count(tref->alias) > 0)
+            {
+                throw InternalError("Duplicate table alias: " + tref->alias);
+            }
+            alias_to_table[tref->alias] = tref->table_name;
+            table_to_alias[tref->table_name] = tref->alias;
+        }
+    }
+    else if (auto join = std::dynamic_pointer_cast<ast::JoinExpr>(node))
+    {
+        extract_table_aliases(join->left, alias_to_table, table_to_alias);
+        extract_table_aliases(join->right, alias_to_table, table_to_alias);
+    }
+}
+
+std::string resolve_table_alias_name(const std::string &name,
+                                     const std::unordered_map<std::string, std::string> &alias_to_table)
+{
+    if (name.empty())
+    {
+        return name;
+    }
+    auto it = alias_to_table.find(name);
+    if (it != alias_to_table.end())
+    {
+        return it->second;
+    }
+    return name;
+}
+
+void resolve_aliases_in_expr(const std::shared_ptr<ast::Expr> &expr,
+                             const std::unordered_map<std::string, std::string> &alias_to_table)
+{
+    if (!expr)
+    {
+        return;
+    }
+
+    if (auto col = std::dynamic_pointer_cast<ast::Col>(expr))
+    {
+        col->tab_name = resolve_table_alias_name(col->tab_name, alias_to_table);
+        return;
+    }
+    if (auto alias = std::dynamic_pointer_cast<ast::AliasExpr>(expr))
+    {
+        resolve_aliases_in_expr(alias->expr, alias_to_table);
+        return;
+    }
+    if (auto agg = std::dynamic_pointer_cast<ast::AggExpr>(expr))
+    {
+        resolve_aliases_in_expr(agg->arg, alias_to_table);
+        return;
+    }
+    if (auto arith = std::dynamic_pointer_cast<ast::ArithExpr>(expr))
+    {
+        resolve_aliases_in_expr(arith->lhs, alias_to_table);
+        resolve_aliases_in_expr(arith->rhs, alias_to_table);
+        return;
+    }
+    if (auto cmp = std::dynamic_pointer_cast<ast::CompareExpr>(expr))
+    {
+        resolve_aliases_in_expr(cmp->lhs, alias_to_table);
+        resolve_aliases_in_expr(cmp->rhs, alias_to_table);
+        return;
+    }
+    if (auto logical = std::dynamic_pointer_cast<ast::LogicalExpr>(expr))
+    {
+        resolve_aliases_in_expr(logical->lhs, alias_to_table);
+        resolve_aliases_in_expr(logical->rhs, alias_to_table);
+        return;
+    }
+}
+
+void resolve_aliases_in_binary_exprs(const std::vector<std::shared_ptr<ast::BinaryExpr>> &conds,
+                                     const std::unordered_map<std::string, std::string> &alias_to_table)
+{
+    for (const auto &cond : conds)
+    {
+        if (!cond)
+        {
+            continue;
+        }
+        cond->lhs->tab_name = resolve_table_alias_name(cond->lhs->tab_name, alias_to_table);
+        resolve_aliases_in_expr(cond->rhs, alias_to_table);
+    }
+}
+
+void resolve_aliases_in_order_by(const std::vector<std::shared_ptr<ast::OrderBy>> &order_by,
+                                 const std::unordered_map<std::string, std::string> &alias_to_table)
+{
+    for (const auto &order : order_by)
+    {
+        if (order && order->cols)
+        {
+            order->cols->tab_name = resolve_table_alias_name(order->cols->tab_name, alias_to_table);
+        }
+    }
+}
+
 void extract_join_conds(const std::shared_ptr<ast::TreeNode> &node, std::vector<std::shared_ptr<ast::BinaryExpr>> &conds)
 {
     if (auto join = std::dynamic_pointer_cast<ast::JoinExpr>(node))
@@ -330,6 +437,8 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
     {
         // 处理表名
         extract_table_names(x->tabs, query->tables); // x指向ast::SelectStmt的指针，tabs是一个表名列表
+        std::unordered_map<std::string, std::string> alias_to_table;
+        extract_table_aliases(x->tabs, alias_to_table, query->tb2alias);
         /** TODO: 检查表是否存在 */
         for (const auto &tab_name : query->tables) // 在query->tables中遍历表名
         {
@@ -361,6 +470,19 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
                 x->conds.insert(x->conds.end(), join_conds.begin(), join_conds.end());
             }
         }
+
+        for (auto &expr : x->cols)
+        {
+            resolve_aliases_in_expr(expr, alias_to_table);
+        }
+        for (auto &expr : query->group_by)
+        {
+            resolve_aliases_in_expr(expr, alias_to_table);
+        }
+        resolve_aliases_in_expr(query->having, alias_to_table);
+        resolve_aliases_in_order_by(query->order, alias_to_table);
+        resolve_aliases_in_binary_exprs(x->conds, alias_to_table);
+
         // 将聚合函数中select信息传递到query->select-exprs中，并且保留非聚合函数的col传递
         for (auto &sv_sel_col : x->cols)
         {
@@ -689,6 +811,10 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
         {
             query->values.push_back(convert_sv_value(sv_val));
         }
+    }
+    else if (auto x = std::dynamic_pointer_cast<ast::ExplainStmt>(parse))
+    {
+        query->inner_query = do_analyze(x->stmt);
     }
     else
     {
