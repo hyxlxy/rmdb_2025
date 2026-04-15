@@ -557,7 +557,8 @@ void set_stock_level(One_Tran &tr, int w)
 	sql = "SELECT d_next_o_id FROM district WHERE d_id = " + std::to_string(d_id) + " AND d_w_id = " + std::to_string(w_id) + ";";
 	add_sql(tr, "STOCK_LEVEL_SELECT_DISTRICT_NEXT_OID", sql);
 	int d_next_o_id = 3001;
-	sql = "select ol_i_id from order_line where ol_w_id=" + std::to_string(w_id) + " and ol_d_id=" + std::to_string(d_id) + " and ol_o_id<3001 and ol_o_id>=1981;";
+	sql = "select ol_i_id from order_line where ol_w_id=" + std::to_string(w_id) + " and ol_d_id=" + std::to_string(d_id) +
+		  " and ol_o_id<" + std::to_string(d_next_o_id) + " and ol_o_id>=" + std::to_string(d_next_o_id - 20) + ";";
 	add_sql(tr, "STOCK_LEVEL_SELECT_ORDER_LINE_RANGE", sql);
 	int level = rand() % 10 + 10;
 	sql = "select count(*) as count_stock from stock where s_w_id=" + std::to_string(w_id) + " and s_i_id=1 and s_quantity<" + std::to_string(level) + ";";

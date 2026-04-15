@@ -9,6 +9,7 @@
 #include <sstream>
 #include <chrono>
 #include <iostream>
+#include <filesystem>
 
 class LoadExecutor : public MVCCExecutorBase
 {
@@ -28,6 +29,38 @@ private:
     bool is_root_locked_ = false;               // 根锁状态
     std::vector<char> last_key_buffer_;         // 上一个插入的key
     bool has_last_key_ = false;                 // 是否有上一个key
+
+    std::string resolve_load_path(const std::string &raw_path)
+    {
+        namespace fs = std::filesystem;
+
+        fs::path requested(raw_path);
+        std::error_code ec;
+
+        if (requested.is_absolute() && fs::exists(requested, ec))
+        {
+            return requested.lexically_normal().string();
+        }
+
+        if (fs::exists(requested, ec))
+        {
+            return requested.lexically_normal().string();
+        }
+
+        ec.clear();
+        fs::path exe_path = fs::canonical("/proc/self/exe", ec);
+        if (!ec)
+        {
+            fs::path repo_root = exe_path.parent_path().parent_path().parent_path();
+            fs::path repo_relative = repo_root / requested;
+            if (fs::exists(repo_relative, ec))
+            {
+                return repo_relative.lexically_normal().string();
+            }
+        }
+
+        return raw_path;
+    }
 
     // 绕过缓冲池管理器的批量插入，返回插入记录的RID列表
     std::vector<Rid> insert_records(char *buf, int record_size, int count) // count 是每批次的记录数
@@ -241,7 +274,7 @@ public:
     {
         sm_manager_ = sm_manager;
         tab_ = sm_manager_->db_.get_table(tab_name);
-        file_name_ = file_name;
+        file_name_ = resolve_load_path(file_name);
         tab_name_ = tab_name;
         have_index = false; // 默认不含索引
         ih_ = nullptr;      // 初始化索引句柄为空

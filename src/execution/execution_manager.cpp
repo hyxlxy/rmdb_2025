@@ -396,5 +396,6 @@ void QlManager::run_load(const std::shared_ptr<Plan> &plan, Context *context)
             outfile << "Load failed: " << load_plan->file_name << " into " << load_plan->table_name << ", reason: " << e.what() << std::endl;
             outfile.close();
         }
+        throw RMDBError("Load failed: " + load_plan->file_name + " into " + load_plan->table_name + ", reason: " + e.what());
     }
 }
