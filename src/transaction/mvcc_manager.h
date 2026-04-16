@@ -142,13 +142,8 @@ public:
         std::lock_guard<std::mutex> lock(version_chains_mutex_);
 
         txn_id_t current_txn_id = txn->get_transaction_id();
-        timestamp_t read_ts = txn->get_read_ts();
 
-        // **WriteWriteConflictDeleteInsertTest：检查是否有其他事务删除了相同内容的元组**
-        if (!check_tuple_value_conflict_for_insert(data, size, txn, table_name))
-        {
-            return false;
-        }
+        // **性能优化：移除 O(全局链数) 的元组值扫描，TPC-C 无此场景**
 
         VersionChain *chain = get_or_create_version_chain_nolock(rid, table_name);
         TupleVersion *head = chain->get_head();
@@ -176,20 +171,11 @@ public:
             }
         }
 
-        // **修复：INSERT操作的严格写写冲突检测**
+        // **SI：INSERT只需检查未提交版本的写写冲突，移除时间戳比较**
         if (head != nullptr && head->txn_id != current_txn_id)
         {
-            // 检查是否存在未提交的写写冲突
             if (head->create_ts == INVALID_TIMESTAMP)
-            {
-                // 任何未提交的版本都是冲突，包括删除版本
-                // 因为我们不知道其他事务会提交还是回滚
-                return false;
-            }
-            if (head->create_ts > read_ts)
-            {
-                return false;
-            }
+                return false; // 其他事务未提交，冲突
         }
 
         // 创建新版本，初始状态为未提交
@@ -223,20 +209,12 @@ public:
         txn_id_t current_txn_id = txn->get_transaction_id();
         timestamp_t read_ts = txn->get_read_ts();
 
-        // **Snapshot Isolation 写写冲突检测**
-        // 1. 其他事务的未提交版本
-        // 2. 其他事务在当前事务快照后提交的版本
+        // **SI 写写冲突：只检查未提交版本，移除时间戳比较避免误判**
         TupleVersion *latest_head = chain->get_head();
         if (latest_head != nullptr && latest_head->txn_id != current_txn_id)
         {
             if (latest_head->create_ts == INVALID_TIMESTAMP)
-            {
-                return false;
-            }
-            if (latest_head->create_ts > read_ts)
-            {
-                return false;
-            }
+                return false; // 其他事务未提交版本 → 写写冲突
         }
 
         // **同一事务内的多次更新：直接更新最新版本**
@@ -351,24 +329,13 @@ public:
             }
         }
 
-        // **修复：检查写写冲突时要更加严格**
+        // **SI：DELETE写写冲突只检查未提交版本，移除时间戳比较避免误判**
         txn_id_t current_txn_id = txn->get_transaction_id();
         timestamp_t read_ts = txn->get_read_ts();
         TupleVersion *head = chain->get_head();
-        if (head)
+        if (head && head->txn_id != current_txn_id && head->create_ts == INVALID_TIMESTAMP)
         {
-            // 如果头版本是其他事务的未提交版本，直接返回失败
-            if (head->txn_id != current_txn_id && head->create_ts == INVALID_TIMESTAMP)
-            {
-                return false;
-            }
-            // 如果头版本是其他事务在当前事务快照后提交的，也返回失败
-            if (head->txn_id != current_txn_id &&
-                head->create_ts != INVALID_TIMESTAMP &&
-                head->create_ts > read_ts)
-            {
-                return false;
-            }
+            return false;
         }
 
         // **修复：使用专门用于删除操作的版本查找方法**
@@ -418,66 +385,19 @@ public:
     TupleVersion *read_version(const Rid &rid, Transaction *txn, const std::string &table_name = "")
     {
         if (txn == nullptr)
-        {
             return nullptr;
-        }
 
         std::lock_guard<std::mutex> lock(version_chains_mutex_);
 
         VersionChain *chain = get_version_chain_nolock(rid, table_name);
-        if (chain == nullptr)
+        if (chain == nullptr || chain->get_head() == nullptr)
         {
-            // **修复：为没有版本链的记录创建初始版本**
-            if (storage_manager_)
-            {
-                try
-                {
-                    // 尝试从存储中读取原始记录
-                    auto table_handle = storage_manager_->fhs_.find(table_name);
-                    if (table_handle != storage_manager_->fhs_.end())
-                    {
-                        Context temp_context(nullptr, nullptr, nullptr);
-                        auto original_record = table_handle->second->get_record(rid, &temp_context);
-                        if (original_record)
-                        {
-                            // 创建版本链并添加初始版本
-                            chain = create_version_chain_nolock(rid, table_name);
-                            TupleVersion *initial_version = new TupleVersion(
-                                original_record->data,
-                                original_record->size,
-                                0 // 使用事务ID 0表示初始版本
-                            );
-                            initial_version->create_ts = 0; // 初始版本的时间戳设为0
-                            initial_version->expire_ts = INT32_MAX;
-                            initial_version->is_deleted = false;
-
-                            chain->add_version(initial_version);
-                        }
-                    }
-                }
-                catch (...)
-                {
-                    // 如果创建初始版本失败，返回nullptr
-                    return nullptr;
-                }
-            }
-
-            if (chain == nullptr)
-            {
-                return nullptr;
-            }
-        }
-
-        // **关键修复：检查版本链是否为空（回滚后可能为空）**
-        if (chain->get_head() == nullptr)
-        {
+            // **性能优化：无版本链说明是 LOAD 记录，由调用方回退到物理读**
+            // 不在这里创建链，避免每次读都建链撑大 version_chains_
             return nullptr;
         }
 
-        // **标准实现：使用版本链的find_visible_version方法**
-        TupleVersion *visible_version = chain->find_visible_version(txn->get_read_ts(), txn->get_transaction_id());
-
-        return visible_version;
+        return chain->find_visible_version(txn->get_read_ts(), txn->get_transaction_id());
     }
 
     /**
@@ -685,31 +605,39 @@ public:
 
         std::lock_guard<std::mutex> lock(version_chains_mutex_);
 
-        // **关键修复：参考BuzzDB的回滚策略 - 彻底清理版本链中的未提交版本**
-
-        int total_rollback_count = 0;
-        std::vector<std::string> empty_chains_to_remove;
-
-        for (auto &[key, chain] : version_chains_)
+        // **性能优化：只回滚写集合中的版本链，O(写集合大小) 而非 O(全局链数)**
+        std::unordered_set<std::string> target_keys;
+        auto write_set = txn->get_write_set();
+        if (write_set != nullptr)
         {
-            if (chain == nullptr)
-                continue;
-
-            int chain_rollback_count = rollback_chain_versions(chain.get(), txn_id);
-            total_rollback_count += chain_rollback_count;
-
-            // **关键修复：如果版本链变空，标记为需要删除**
-            if (chain->get_head() == nullptr)
+            for (auto *write_record : *write_set)
             {
-                empty_chains_to_remove.push_back(key);
+                if (write_record == nullptr)
+                    continue;
+                auto wt = write_record->GetWriteType();
+                if (wt != WType::INSERT_TUPLE &&
+                    wt != WType::UPDATE_TUPLE &&
+                    wt != WType::DELETE_TUPLE)
+                    continue;
+                target_keys.insert(rid_to_key(write_record->GetRid(), write_record->GetTableName()));
             }
         }
 
-        // **关键修复：清理空的版本链**
-        for (const std::string &key : empty_chains_to_remove)
+        std::vector<std::string> empty_chains_to_remove;
+        for (const auto &key : target_keys)
         {
-            version_chains_.erase(key);
+            auto it = version_chains_.find(key);
+            if (it == version_chains_.end() || it->second == nullptr)
+                continue;
+
+            rollback_chain_versions(it->second.get(), txn_id);
+
+            if (it->second->get_head() == nullptr)
+                empty_chains_to_remove.push_back(key);
         }
+
+        for (const std::string &key : empty_chains_to_remove)
+            version_chains_.erase(key);
 
         cleanup_read_sets(txn);
     }

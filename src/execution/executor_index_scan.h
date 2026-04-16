@@ -12,6 +12,7 @@ See the Mulan PSL v2 for more details. */
 
 #include <float.h>
 #include <limits.h>
+#include <unordered_set>
 
 #include "execution_defs.h"
 #include "execution_manager.h"
@@ -209,8 +210,14 @@ public:
                 }
                 else if (gt_cond)
                 {
-                    // 为了安全起见，将 > 条件的下界设置为该值（等同于 >=），并依赖后续过滤去除等于项
-                    if (col_meta.type == TYPE_STRING)
+                    // **优化：> val 等价于 >= val+1（整数），直接调整下界，避免逐行过滤**
+                    if (col_meta.type == TYPE_INT)
+                    {
+                        int val = *reinterpret_cast<const int *>(gt_cond->rhs_val.raw->data);
+                        if (val < int_max_) val += 1;
+                        memcpy(lower_key + offset, &val, sizeof(int));
+                    }
+                    else if (col_meta.type == TYPE_STRING)
                     {
                         copy_string_key(lower_key + offset, gt_cond->rhs_val.raw->data, col_meta.len);
                     }
@@ -235,10 +242,21 @@ public:
                 }
                 else if (lt_cond)
                 {
-                    if (col_meta.type == TYPE_STRING)
+                    // **优化：< val 等价于 <= val-1（整数），精确上界避免逐行过滤**
+                    if (col_meta.type == TYPE_INT)
+                    {
+                        int val = *reinterpret_cast<const int *>(lt_cond->rhs_val.raw->data);
+                        if (val > int_min_) val -= 1;
+                        memcpy(upper_key + offset, &val, sizeof(int));
+                    }
+                    else if (col_meta.type == TYPE_STRING)
+                    {
                         copy_string_key(upper_key + offset, lt_cond->rhs_val.raw->data, col_meta.len);
+                    }
                     else
+                    {
                         memcpy(upper_key + offset, lt_cond->rhs_val.raw->data, col_meta.len);
+                    }
                 }
                 // 没有上界条件则保持最大值（初始化时已设置）
 
@@ -262,7 +280,45 @@ public:
         // 索引范围查询只是预过滤，最终还需要条件过滤
         fed_conds_ = raw_conds_;
 
-        // 总是进行条件过滤，确保结果正确性
+        // **优化：收集索引覆盖的条件列，从 fed_conds_ 中剔除，减少逐行过滤开销**
+        // 规则：对索引列上的 EQ/GE/LE(含GT→GE+1/LT→LE-1 转换后) 已由区间保证，无需再判断
+        {
+            // 建立已被索引覆盖的 (col_name, op) 集合
+            std::unordered_set<std::string> covered_cols; // 完全等值覆盖的列
+            bool prefix_eq_cover = true;
+            for (size_t ci = 0; ci < index_col_names_.size(); ++ci)
+            {
+                const auto &col_name = index_col_names_[ci];
+                bool has_eq = false, has_range = false;
+                for (auto &cond : conds_) // conds_ 已是索引列条件
+                {
+                    if (cond.lhs_col.col_name == col_name && cond.is_rhs_val)
+                    {
+                        if (cond.op == OP_EQ) has_eq = true;
+                        else has_range = true;
+                    }
+                }
+                if (prefix_eq_cover && has_eq)
+                    covered_cols.insert(col_name);
+                else if (has_range || has_eq)
+                {
+                    covered_cols.insert(col_name); // range bound is exact after GT→GE+1
+                    prefix_eq_cover = false;
+                    break; // range stops prefix
+                }
+                else
+                    break;
+            }
+            // 从 fed_conds_ 中移除被索引完全覆盖的单列值条件
+            if (!covered_cols.empty())
+            {
+                auto new_end = std::remove_if(fed_conds_.begin(), fed_conds_.end(),
+                    [&](const Condition &c) {
+                        return c.is_rhs_val && covered_cols.count(c.lhs_col.col_name) > 0;
+                    });
+                fed_conds_.erase(new_end, fed_conds_.end());
+            }
+        }
         while (!scan_->is_end())
         {
             try {

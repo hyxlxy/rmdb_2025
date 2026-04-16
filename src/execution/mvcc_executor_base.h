@@ -59,27 +59,23 @@ protected:
     std::unique_ptr<RmRecord> get_record_mvcc(RmFileHandle *fh, const Rid &rid, Context *context, SmManager *sm_manager)
     {
         if (!context || !context->txn_)
-        {
             return fh->get_record(rid, context);
-        }
 
         auto mvcc_manager = get_mvcc_manager_from_context(context);
         if (!mvcc_manager)
+            return fh->get_record(rid, context);
+
+        // 先检查是否存在版本链
+        VersionChain *chain = mvcc_manager->get_version_chain(rid, context->current_table_name_);
+        if (chain == nullptr)
         {
+            // **性能优化：无 MVCC 版本链 → LOAD 记录，对所有事务可见，直接物理读**
             return fh->get_record(rid, context);
         }
 
-        // 如果当前事务没有版本，使用标准的可见性判断
         TupleVersion *visible_version = mvcc_manager->read_version(rid, context->txn_, context->current_table_name_);
-        if (!visible_version)
-        {
+        if (!visible_version || visible_version->is_deleted)
             return nullptr;
-        }
-
-        if (visible_version->is_deleted)
-        {
-            return nullptr;
-        }
 
         auto record = std::make_unique<RmRecord>(visible_version->size);
         memcpy(record->data, visible_version->data, visible_version->size);
@@ -222,85 +218,26 @@ public:
             return true;
         }
 
-        // **关键修复：在显式事务中进行更严格的冲突检测**
-        bool in_explicit_transaction = context->txn_->get_txn_mode();
+        txn_id_t current_txn_id = context->txn_->get_transaction_id();
 
-        // **关键修复：检查记录是否存在且可见**
-        auto version_chain_full = mvcc_manager->get_or_create_version_chain(rid, context->current_table_name_);
+        // **SI 写写冲突检测：只需检查未提交版本，不做时间戳比较（避免误判）**
+        VersionChain *version_chain_full = mvcc_manager->get_version_chain(rid, context->current_table_name_);
         if (version_chain_full)
         {
             auto head = version_chain_full->get_head();
-            txn_id_t current_txn_id = context->txn_->get_transaction_id();
-            timestamp_t read_ts = context->txn_->get_read_ts();
-            if (!head)
+            if (head && head->txn_id != current_txn_id && head->create_ts == INVALID_TIMESTAMP)
             {
-                // 版本链为空，说明这是一个通过LOAD或其他非MVCC方式创建的记录
-                // 我们需要为它创建一个初始版本，表示记录在事务开始前就存在
-
-                // 读取当前的物理记录作为初始版本
-                try
-                {
-                    auto current_record = fh->get_record(rid, context);
-                    if (current_record)
-                    {
-                        // 创建一个已提交的初始版本，时间戳设为0（表示很早就存在）
-                        TupleVersion *initial_version = new TupleVersion(
-                            current_record->data,
-                            current_record->size,
-                            INVALID_TXN_ID // 使用无效事务ID表示系统记录
-                        );
-                        initial_version->create_ts = 0; // 设置为最早时间戳
-                        initial_version->expire_ts = INT32_MAX;
-                        initial_version->is_deleted = false;
-
-                        version_chain_full->add_version(initial_version);
-                        head = initial_version;
-                    }
-                }
-                catch (const std::exception &e)
-                {
+                // 其他事务的未提交版本 → 真正的写写冲突
+                if (head->is_deleted)
                     throw TransactionAbortException(current_txn_id, AbortReason::WRITE_WRITE_CONFLICT);
-                }
-            }
-
-            TupleVersion *visible_version = version_chain_full->find_visible_version(read_ts, current_txn_id);
-            if (!visible_version)
-            {
-                // 没有可见版本，说明记录已被删除或不存在
-                throw TransactionAbortException(current_txn_id, AbortReason::RECORD_NOT_FOUND);
-            }
-            // 只有未提交的删除版本才是真正的写写冲突，已提交的删除应该是正常的abort
-            if (head && head->is_deleted && head->txn_id != current_txn_id)
-            {
-                if (head->create_ts == INVALID_TIMESTAMP)
-                {
-                    // 未提交的删除版本，这是真正的写写冲突
-                    throw TransactionAbortException(current_txn_id, AbortReason::WRITE_WRITE_CONFLICT);
-                }
                 else
-                {
-                    // 已提交的删除版本，记录不存在，这是正常的abort而不是写写冲突
-                    throw TransactionAbortException(current_txn_id, AbortReason::RECORD_NOT_FOUND);
-                }
+                    throw TransactionAbortException(current_txn_id, AbortReason::WRITE_WRITE_CONFLICT);
             }
-
-            // 基本的未提交版本冲突检测
-            if (head && head->txn_id != current_txn_id && head->create_ts == INVALID_TIMESTAMP && !head->is_deleted)
+            // 已提交删除版本 → 记录不存在
+            if (head && head->is_deleted && head->txn_id != current_txn_id &&
+                head->create_ts != INVALID_TIMESTAMP)
             {
-                throw TransactionAbortException(current_txn_id, AbortReason::WRITE_WRITE_CONFLICT);
-            }
-
-            // **修复：更合理的时间戳冲突检测**
-            // 只在确实存在并发修改冲突时才抛出写写冲突
-            if (in_explicit_transaction && head && head->txn_id != current_txn_id && !head->is_deleted)
-            {
-                // 检查是否有其他事务在当前事务开始后提交的版本
-                // 但要确保这确实是一个需要abort的情况，而不是可以正常处理的情况
-                if (head->create_ts != INVALID_TIMESTAMP && head->create_ts > read_ts)
-                {
-                    // 这种情况下，记录在当前事务快照后被修改，应该是读写冲突而不是写写冲突
-                    throw TransactionAbortException(current_txn_id, AbortReason::READ_WRITE_CONFLICT);
-                }
+                throw TransactionAbortException(current_txn_id, AbortReason::RECORD_NOT_FOUND);
             }
         }
 
@@ -340,28 +277,15 @@ public:
         }
 
         txn_id_t current_txn_id = context->txn_->get_transaction_id();
-        timestamp_t read_ts = context->txn_->get_read_ts();
 
-        // 检查版本链中的冲突
+        // **SI 写写冲突检测：只检查未提交版本，移除时间戳比较避免误判**
         auto version_chain = mvcc_manager->get_version_chain(rid, context->current_table_name_);
         if (version_chain)
         {
             auto head = version_chain->get_head();
-            if (head)
+            if (head && head->txn_id != current_txn_id && head->create_ts == INVALID_TIMESTAMP)
             {
-                // 检查冲突：其他未提交事务的版本
-                if (head->txn_id != current_txn_id && head->create_ts == INVALID_TIMESTAMP)
-                {
-                    throw TransactionAbortException(current_txn_id, AbortReason::WRITE_WRITE_CONFLICT);
-                }
-
-                // 检查冲突：在当前事务快照后提交的版本
-                if (head->txn_id != current_txn_id &&
-                    head->create_ts != INVALID_TIMESTAMP &&
-                    head->create_ts > read_ts)
-                {
-                    throw TransactionAbortException(current_txn_id, AbortReason::WRITE_WRITE_CONFLICT);
-                }
+                throw TransactionAbortException(current_txn_id, AbortReason::WRITE_WRITE_CONFLICT);
             }
         }
 

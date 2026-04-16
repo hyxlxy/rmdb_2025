@@ -30,6 +30,24 @@ private:
     std::string tab_name_;
     std::vector<SetClause> set_clauses_;
     SmManager *sm_manager_;
+    bool need_update_index_; // 预计算：set子句中是否有列涉及索引
+
+    // 检查 set_clauses 中是否有列属于某个索引
+    bool compute_need_update_index() const
+    {
+        for (auto &[index_name, index] : tab_.indexes)
+        {
+            for (auto &sc : set_clauses_)
+            {
+                for (int i = 0; i < index.col_num; ++i)
+                {
+                    if (index.cols[i].name == sc.lhs.col_name)
+                        return true;
+                }
+            }
+        }
+        return false;
+    }
 
 private:
     Value evaluate_set_clause(SetClause &set_clause, RmRecord *record, const ColMeta &col_meta)
@@ -96,6 +114,7 @@ public:
         {
             context_->current_table_name_ = tab_name_;
         }
+        need_update_index_ = compute_need_update_index();
     }
 
     std::unique_ptr<RmRecord> Next() override
@@ -133,6 +152,8 @@ public:
 
             std::vector<std::pair<std::string, std::unique_ptr<char[]>>> new_index_keys;
 
+            if (need_update_index_)
+            {
             for (auto &[index_name, index] : tab_.indexes)
             {
                 auto ih = sm_manager_->ihs_.at(index_name).get();
@@ -171,6 +192,7 @@ public:
                 memcpy(key_copy.get(), new_key.get(), index.col_tot_len);
                 new_index_keys.emplace_back(index_name, std::move(key_copy));
             }
+            } // end if (need_update_index_)
 
             if (!update_record_mvcc(fh_, rid, updated_record->data, context_, sm_manager_))
             {

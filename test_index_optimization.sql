@@ -1,0 +1,6 @@
+-- 测试索引条件裁剪
+-- 假设有索引在 (col1, col2)
+-- 查询: SELECT * FROM table WHERE col1 = 1 AND col2 > 5 AND col3 = 'test'
+-- 优化后：
+-- - index_conds_: col1 = 1, col2 > 5 (用于索引扫描)
+-- - real_conds_: col2 > 5, col3 = 'test' (col2 > 5需要额外判断，col3不是索引列)

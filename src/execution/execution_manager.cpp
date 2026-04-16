@@ -237,17 +237,12 @@ void QlManager::run_cmd_utility(std::shared_ptr<Plan> plan, txn_id_t *txn_id, Co
 void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, std::vector<TabCol> sel_cols,
                             Context *context)
 {
-    // 初始化执行器
-    executorTreeRoot->beginTuple();
-
     // 对于聚合查询，sel_cols可能为空，此时使用执行器的输出列信息
     if (sel_cols.empty())
     {
         auto &executor_cols = executorTreeRoot->cols();
         for (const auto &col : executor_cols)
         {
-            // 调试输出
-            std::cout << "Debug: col.name = " << col.name << std::endl;
             TabCol sel_col = {.tab_name = col.tab_name, .col_name = col.name};
             sel_cols.push_back(sel_col);
         }
@@ -280,11 +275,9 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
 
     // Print records
     size_t num_rec = 0;
-    try
+    // 执行query_plan
+    for (executorTreeRoot->beginTuple(); !executorTreeRoot->is_end(); executorTreeRoot->nextTuple())
     {
-        // 执行query_plan（注意：不要再次调用beginTuple）
-        for (; !executorTreeRoot->is_end(); executorTreeRoot->nextTuple())
-        {
             auto Tuple = executorTreeRoot->Next();
             std::vector<std::string> columns;
             for (auto &col : executorTreeRoot->cols())
@@ -320,30 +313,16 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
             }
             num_rec++;
         }
-    }
-    catch (const RMDBError &e)
-    {
-        // 索引查询异常，继续执行，输出已有的表头
-    }
-    catch (const TransactionAbortException &)
-    {
-        // 事务中止必须向上传播，不能伪装成“空结果”
-        throw;
-    }
-    catch (const std::exception &e)
-    {
-        // 其他异常
-    }
 
-    if (output_file_enabled)
-    {
-        outfile.close();
+        if (output_file_enabled)
+        {
+            outfile.close();
+        }
+        // Print footer into buffer
+        rec_printer.print_separator(context);
+        // Print record count into buffer
+        RecordPrinter::print_record_count(num_rec, context);
     }
-    // Print footer into buffer
-    rec_printer.print_separator(context);
-    // Print record count into buffer
-    RecordPrinter::print_record_count(num_rec, context);
-}
 
 // 执行DML语句
 void QlManager::run_dml(std::unique_ptr<AbstractExecutor> exec)

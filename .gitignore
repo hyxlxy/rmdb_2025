@@ -21,7 +21,10 @@ src/parser/lex.yy.h
 *.tab.h
 *.yy.cpp
 *.yy.h
-
+*.data
+*.old
+*.out
+*.svg
 # CMake文件
 CMakeCache.txt
 CMakeFiles/
