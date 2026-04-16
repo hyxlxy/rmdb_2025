@@ -337,6 +337,10 @@ public:
 
 // };
 
+// Minimal Chunk type for ChunkFliter (avoids circular include with chunk_scan.h)
+struct ColData { char *data_; };
+struct Chunk { std::vector<ColData> datas_; };
+
 class ChunkFliter
 {
 private:

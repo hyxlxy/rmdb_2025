@@ -15,6 +15,13 @@ See the Mulan PSL v2 for more details. */
 #include "index/ix.h"
 #include "system/sm.h"
 
+// 连续块描述：将相邻列合并为一次 memcpy
+struct ProjectionRun {
+    size_t src_offset; // 原始记录中的起始偏移
+    size_t dst_offset; // 投影记录中的起始偏移
+    size_t len;        // 连续块总长度
+};
+
 class ProjectionExecutor : public MVCCExecutorBase
 {
 private:
@@ -22,6 +29,8 @@ private:
     std::vector<ColMeta> cols_;              // 需要投影的字段
     size_t len_;                             // 字段总长度
     std::vector<size_t> sel_idxs_;           // 选中列在原始记录中的索引位置
+    std::vector<ProjectionRun> runs_;        // run-length encoding：连续块列表
+    char *proj_buf_ = nullptr;              // 预分配投影缓冲区，复用避免每次 malloc
 
 public:
     /**
@@ -103,6 +112,38 @@ public:
             }
         }
         len_ = curr_offset;
+
+        // **构建 run-length encoding：将物理地址连续的列合并为单次 memcpy**
+        if (!sel_idxs_.empty()) {
+            const auto &prev_cols_ref = prev_->cols();
+            ProjectionRun cur;
+            cur.src_offset = prev_cols_ref[sel_idxs_[0]].offset;
+            cur.dst_offset = cols_[0].offset;
+            cur.len        = prev_cols_ref[sel_idxs_[0]].len;
+
+            for (size_t i = 1; i < sel_idxs_.size(); ++i) {
+                size_t pi = sel_idxs_[i - 1];
+                size_t ci = sel_idxs_[i];
+                size_t prev_end   = prev_cols_ref[pi].offset + prev_cols_ref[pi].len;
+                size_t curr_start = prev_cols_ref[ci].offset;
+                if (prev_end == curr_start) {
+                    cur.len += prev_cols_ref[ci].len; // 扩展当前 run
+                } else {
+                    runs_.push_back(cur);
+                    cur.src_offset = curr_start;
+                    cur.dst_offset = cols_[i].offset;
+                    cur.len        = prev_cols_ref[ci].len;
+                }
+            }
+            runs_.push_back(cur);
+        }
+
+        // 预分配投影缓冲区，整个生命周期复用
+        if (len_ > 0) proj_buf_ = new char[len_];
+    }
+
+    ~ProjectionExecutor() override {
+        delete[] proj_buf_;
     }
 
     /**
@@ -165,28 +206,21 @@ public:
         // 从子执行器获取下一条记录
         auto prev_record = prev_->Next();
         if (prev_record == nullptr)
-        {
-            return nullptr; // 子执行器已经结束
+            return nullptr;
+
+        // **使用 run-length encoding 减少 memcpy 次数**
+        for (const auto &run : runs_) {
+            memcpy(proj_buf_ + run.dst_offset,
+                   prev_record->data + run.src_offset,
+                   run.len);
         }
 
-        // 创建投影后的记录缓冲区
-        auto projected_record = std::make_unique<RmRecord>(len_);
-
-        // 根据选择的列索引提取数据并重新组织
-        auto &prev_cols = prev_->cols();
-        for (size_t i = 0; i < sel_idxs_.size(); ++i)
-        {
-            size_t sel_idx = sel_idxs_[i];             // 原始记录中的列索引
-            const auto &prev_col = prev_cols[sel_idx]; // 原始列的元数据
-            const auto &proj_col = cols_[i];           // 投影后列的元数据
-
-            // 从原始记录中复制对应列的数据到投影记录中
-            memcpy(projected_record->data + proj_col.offset, // 目标位置
-                   prev_record->data + prev_col.offset,      // 源位置
-                   prev_col.len);                            // 复制长度
-        }
-
-        return projected_record;
+        // 返回指向预分配缓冲区的非拥有 RmRecord（allocated_=false，不会 double-free）
+        auto rec = std::make_unique<RmRecord>();
+        rec->data       = proj_buf_;
+        rec->size       = static_cast<int>(len_);
+        rec->allocated_ = false; // 缓冲区由 ProjectionExecutor 自己管理
+        return rec;
     }
 
     /**

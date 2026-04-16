@@ -73,7 +73,7 @@ Page* BufferPoolManager::fetch_page(PageId page_id) {
     // 3.     调用disk_manager_的read_page读取目标页到frame
     // 4.     固定目标页，更新pin_count_
     // 5.     返回目标页
-    std::scoped_lock lock{latch_};
+    std::unique_lock<std::shared_mutex> lock{latch_};
     auto iter = page_table_.find(page_id);//在page table中查找有没有该页面
     if(iter != page_table_.end()){//如果在pagetable中
         frame_id_t frame_id = iter->second;
@@ -115,7 +115,7 @@ bool BufferPoolManager::unpin_page(PageId page_id, bool is_dirty) {
     // 2.2.1 若自减后等于0，则调用replacer_的Unpin
     // 3 根据参数is_dirty，更改P的is_dirty_
     // 0. lock latch
-    std::scoped_lock<std::mutex> sl{latch_};
+    std::unique_lock<std::shared_mutex> sl{latch_};
 
      frame_id_t frame_id{INVALID_FRAME_ID};
     auto iter = page_table_.find(page_id);
@@ -147,7 +147,7 @@ bool BufferPoolManager::flush_page(PageId page_id) {
     // 1.1 目标页P没有被page_table_记录 ，返回false
     // 2. 无论P是否为脏都将其写回磁盘。
     // 3. 更新P的is_dirty_
-    std::scoped_lock lock{latch_};
+    std::unique_lock<std::shared_mutex> lock{latch_};
     auto iter = page_table_.find(page_id);
     if(iter == page_table_.end()||page_id.page_no == INVALID_PAGE_ID){
         return false;
@@ -171,7 +171,7 @@ Page* BufferPoolManager::new_page(PageId* page_id) {
     // 3.   将frame的数据写回磁盘
     // 4.   固定frame，更新pin_count_
     // 5.   返回获得的page
-    std::scoped_lock lock{latch_};
+    std::unique_lock<std::shared_mutex> lock{latch_};
     frame_id_t frame_id;
     if(!find_victim_page(&frame_id)){
         return nullptr;
@@ -194,7 +194,7 @@ bool BufferPoolManager::delete_page(PageId page_id) {
     // 2.   若目标页的pin_count不为0，则返回false
     // 3.   将目标页数据写回磁盘，从页表中删除目标页，重置其元数据，将其加入free_list_，返回true
     
-std::scoped_lock lock{latch_};
+std::unique_lock<std::shared_mutex> lock{latch_};
     auto iter = page_table_.find(page_id);
     if(iter == page_table_.end()){
         return true;
@@ -218,7 +218,7 @@ std::scoped_lock lock{latch_};
  * @param {int} fd 文件句柄
  */
 void BufferPoolManager::flush_all_pages(int fd) {
-    std::scoped_lock<std::mutex> sl{latch_};
+    std::unique_lock<std::shared_mutex> sl{latch_};
     for (size_t i = 0; i < pool_size_; i++) {
         auto *page = &pages_[i];
         if (fd == page->get_page_id().fd && INVALID_PAGE_ID != page->get_page_id().page_no) {
