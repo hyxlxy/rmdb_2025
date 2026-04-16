@@ -204,16 +204,16 @@ void SmManager::set_check_point()
     // 关键修复：在创建检查点之前，必须确保所有脏页都已刷盘
     // 这样才能保证检查点之前的数据真正持久化
 
-    // 刷新所有表文件的脏页
+    // 刷新所有表文件的脏页（从各自的 per-file pool 刷）
     for (auto &[table_name, fh] : fhs_)
     {
-        buffer_pool_manager_->flush_all_pages(fh->GetFd());
+        fh->get_bpm()->flush_all_pages(fh->GetFd());
     }
 
     // 刷新所有索引文件的脏页
     for (auto &[index_name, ih] : ihs_)
     {
-        buffer_pool_manager_->flush_all_pages(ih->GetFd());
+        ih->get_bpm()->flush_all_pages(ih->GetFd());
     }
 
     int check_point_fd = disk_manager_->open_file(CHECK_POINT_NAME);

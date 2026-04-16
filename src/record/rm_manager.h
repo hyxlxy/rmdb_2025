@@ -15,16 +15,21 @@ See the Mulan PSL v2 for more details. */
 #include "bitmap.h"
 #include "rm_defs.h"
 #include "rm_file_handle.h"
+#include "storage/disk_buffer_pool.h"
 
 /* 记录管理器，用于管理表的数据文件，进行文件的创建、打开、删除、关闭 */
 class RmManager {
    private:
     DiskManager *disk_manager_;
-    BufferPoolManager *buffer_pool_manager_;
+    BufferPoolManager *buffer_pool_manager_ = nullptr; // 兼容旧接口
+    BufferPool *disk_buffer_pool_ = nullptr;           // 分池模式
 
    public:
     RmManager(DiskManager *disk_manager, BufferPoolManager *buffer_pool_manager)
         : disk_manager_(disk_manager), buffer_pool_manager_(buffer_pool_manager) {}
+
+    RmManager(DiskManager *disk_manager, BufferPool *buffer_pool)
+        : disk_manager_(disk_manager), disk_buffer_pool_(buffer_pool) {}
 
     /**
      * @description: 创建表的数据文件并初始化相关信息
@@ -71,7 +76,13 @@ class RmManager {
      */
     std::unique_ptr<RmFileHandle> open_file(const std::string& filename) {
         int fd = disk_manager_->open_file(filename);
-        return std::make_unique<RmFileHandle>(disk_manager_, buffer_pool_manager_, fd);
+        BufferPoolManager *pool;
+        if (disk_buffer_pool_) {
+            pool = disk_buffer_pool_->get_pool(filename, FILE_POOL_SIZE);
+        } else {
+            pool = buffer_pool_manager_;
+        }
+        return std::make_unique<RmFileHandle>(disk_manager_, pool, fd);
     }
     /**
      * @description: 关闭表的数据文件
@@ -79,11 +90,17 @@ class RmManager {
      */
     void close_file(const RmFileHandle* file_handle) {
         char page_buf[PAGE_SIZE];
-        memset(page_buf, 0, PAGE_SIZE);  // 初始化整个页面为0
-        memcpy(page_buf, &file_handle->file_hdr_, sizeof(file_handle->file_hdr_));  // 复制文件头到页面缓冲区
+        memset(page_buf, 0, PAGE_SIZE);
+        memcpy(page_buf, &file_handle->file_hdr_, sizeof(file_handle->file_hdr_));
         disk_manager_->write_page(file_handle->fd_, RM_FILE_HDR_PAGE, page_buf, PAGE_SIZE);
-        // 缓冲区的所有页刷到磁盘，注意这句话必须写在close_file前面
-        buffer_pool_manager_->flush_all_pages(file_handle->fd_);
+        if (disk_buffer_pool_) {
+            std::string fname = disk_manager_->get_file_name(file_handle->fd_);
+            auto *pool = disk_buffer_pool_->fetch_pool(fname);
+            pool->flush_all_pages(file_handle->fd_);
+            disk_buffer_pool_->delete_pool(fname);
+        } else {
+            buffer_pool_manager_->flush_all_pages(file_handle->fd_);
+        }
         disk_manager_->close_file(file_handle->fd_);
     }
 };

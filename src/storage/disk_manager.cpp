@@ -38,40 +38,12 @@ void DiskManager::write_page(int fd, page_id_t page_no, const char *offset, int 
     // {
     //     throw InternalError("DiskManager::write_page Error: write failed, expected " + std::to_string(num_bytes) + " bytes, but wrote " + std::to_string(bytes_written) + " bytes.");
     // }
-    // 0. 检查 num_bytes 合法性
-    if (num_bytes < 0 || num_bytes > PAGE_SIZE) {
-        throw InternalError("DiskManager::write_page invalid num_bytes: "
-                            + std::to_string(num_bytes));
-    }
-
-    // 1. 定位到目标页首
+    // 使用 pwrite 替代 lseek+write（线程安全，无竞态）
     off_t offset_pos = static_cast<off_t>(page_no) * PAGE_SIZE;
-    if (lseek(fd, offset_pos, SEEK_SET) == -1) {
-        throw UnixError();
+    ssize_t bytes_written = pwrite(fd, offset, num_bytes, offset_pos);
+    if (bytes_written != num_bytes) {
+        throw InternalError("DiskManager::write_page pwrite failed");
     }
-
-    // 2. 循环写入，处理短写
-    const char *ptr = offset;
-    int remaining = num_bytes;
-    while (remaining > 0) {
-        ssize_t bytes_written = write(fd, ptr, remaining);
-        if (bytes_written < 0) {
-            throw UnixError();
-        }
-        if (bytes_written == 0) {
-            // 理论上不会发生，但防止死循环
-            throw InternalError("DiskManager::write_page write returned 0");
-        }
-        remaining -= static_cast<int>(bytes_written);
-        ptr       += bytes_written;
-    }
-
-    // 3. 同步到磁盘，确保持久化 - 为了性能优化，在批量操作时可以延迟同步
-    // 注释掉fsync以提高批量写入性能，依赖操作系统的缓冲区管理
-    // 在需要强制同步时，可以调用专门的sync_file方法
-    // if (fsync(fd) == -1) {
-    //     throw UnixError();
-    // }
 }
 
 /**
@@ -110,43 +82,16 @@ void DiskManager::read_page(int fd, page_id_t page_no, char *offset, int num_byt
     // {
     //     throw InternalError("DiskManager::read_page Error: read failed, expected " + std::to_string(num_bytes) + " bytes, but read " + std::to_string(bytes_read) + " bytes.");
     // }
-    // 0. 参数合法性检查
-    if (num_bytes < 0 || num_bytes > PAGE_SIZE) {
-        throw InternalError("DiskManager::read_page invalid num_bytes: "
-                            + std::to_string(num_bytes));
-    }
-
-    // 1. 定位到目标页首
+    // 使用 pread 替代 lseek+read（线程安全，无竞态）
     off_t offset_pos = static_cast<off_t>(page_no) * PAGE_SIZE;
-    if (lseek(fd, offset_pos, SEEK_SET) == -1) {
-        throw UnixError();
+    ssize_t bytes_read = pread(fd, offset, num_bytes, offset_pos);
+    if (bytes_read != num_bytes) {
+        off_t file_size = lseek(fd, 0, SEEK_END);
+        throw InternalError("DiskManager::read_page pread failed. "
+                            + std::string("Got ") + std::to_string(bytes_read) + " bytes, wanted "
+                            + std::to_string(num_bytes) + ". File size: " + std::to_string(file_size)
+                            + ", Page: " + std::to_string(page_no));
     }
-
-    // 2. 循环读取，处理短读
-    char *ptr = offset;
-    int remaining = num_bytes;
-    while (remaining > 0) {
-        ssize_t bytes_read = read(fd, ptr, remaining);
-        if (bytes_read < 0) {
-            throw UnixError();
-        }
-        if (bytes_read == 0) {
-            // 提前到达文件末尾，无法继续读取
-            // 获取文件大小信息用于调试
-            off_t file_size = lseek(fd, 0, SEEK_END);
-            off_t expected_pos = static_cast<off_t>(page_no) * PAGE_SIZE + (num_bytes - remaining);
-
-            throw InternalError("DiskManager::read_page Error: reached EOF with "
-                                + std::to_string(remaining) + " bytes remaining. "
-                                + "File size: " + std::to_string(file_size) + ", "
-                                + "Expected position: " + std::to_string(expected_pos) + ", "
-                                + "Page number: " + std::to_string(page_no) + ", "
-                                + "Requested bytes: " + std::to_string(num_bytes));
-        }
-        remaining -= static_cast<int>(bytes_read);
-        ptr       += bytes_read;
-    }
-
 }
 
 /**

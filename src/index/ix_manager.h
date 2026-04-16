@@ -16,16 +16,20 @@ See the Mulan PSL v2 for more details. */
 #include "system/sm_meta.h"
 #include "ix_defs.h"
 #include "ix_index_handle.h"
+#include "storage/disk_buffer_pool.h"
 
 class IxManager {
 private:
     DiskManager *disk_manager_;
-    BufferPoolManager *buffer_pool_manager_;
+    BufferPoolManager *buffer_pool_manager_ = nullptr;
+    BufferPool *disk_buffer_pool_ = nullptr;
 
 public:
     IxManager(DiskManager *disk_manager, BufferPoolManager *buffer_pool_manager)
-        : disk_manager_(disk_manager), buffer_pool_manager_(buffer_pool_manager) {
-    }
+        : disk_manager_(disk_manager), buffer_pool_manager_(buffer_pool_manager) {}
+
+    IxManager(DiskManager *disk_manager, BufferPool *buffer_pool)
+        : disk_manager_(disk_manager), disk_buffer_pool_(buffer_pool) {}
 
     std::string get_index_name(const std::string &filename, const std::vector<std::string> &index_cols) {
         std::ostringstream oss;
@@ -185,33 +189,39 @@ public:
     std::unique_ptr<IxIndexHandle> open_index(const std::string &filename, const std::vector<ColMeta> &index_cols) {
         std::string ix_name = get_index_name(filename, index_cols);
         int fd = disk_manager_->open_file(ix_name);
-        return std::make_unique<IxIndexHandle>(disk_manager_, buffer_pool_manager_, fd);
+        BufferPoolManager *pool = disk_buffer_pool_ ? disk_buffer_pool_->get_pool(ix_name, INDEX_POOL_SIZE) : buffer_pool_manager_;
+        return std::make_unique<IxIndexHandle>(disk_manager_, pool, fd);
     }
 
     std::unique_ptr<IxIndexHandle> open_index(const std::string &filename, const std::vector<std::string> &index_cols) {
         std::string ix_name = get_index_name(filename, index_cols);
         int fd = disk_manager_->open_file(ix_name);
-        return std::make_unique<IxIndexHandle>(disk_manager_, buffer_pool_manager_, fd);
+        BufferPoolManager *pool = disk_buffer_pool_ ? disk_buffer_pool_->get_pool(ix_name, INDEX_POOL_SIZE) : buffer_pool_manager_;
+        return std::make_unique<IxIndexHandle>(disk_manager_, pool, fd);
     }
 
     std::unique_ptr<IxIndexHandle> open_index(const std::string &index_name) {
         int fd = disk_manager_->open_file(index_name);
-        return std::make_unique<IxIndexHandle>(disk_manager_, buffer_pool_manager_, fd);
+        BufferPoolManager *pool = disk_buffer_pool_ ? disk_buffer_pool_->get_pool(index_name, INDEX_POOL_SIZE) : buffer_pool_manager_;
+        return std::make_unique<IxIndexHandle>(disk_manager_, pool, fd);
     }
 
     void close_index(const IxIndexHandle *ih) {
-        if (ih == nullptr) {
-            return;  // 如果传入空指针，直接返回
-        }
+        if (ih == nullptr) return;
         char *data = new char[PAGE_SIZE];
-        memset(data, 0, PAGE_SIZE);  // 初始化整个页面为0
+        memset(data, 0, PAGE_SIZE);
         ih->file_hdr_->serialize(data);
         disk_manager_->write_page(ih->fd_, IX_FILE_HDR_PAGE, data, PAGE_SIZE);
-        // 缓冲区的所有页刷到磁盘，注意这句话必须写在close_file前面
-        buffer_pool_manager_->flush_all_pages(ih->fd_);
-        // ！清空页表，防止 disk read error
-        buffer_pool_manager_->flush_all_pages(ih->fd_);
+        if (disk_buffer_pool_) {
+            std::string fname = disk_manager_->get_file_name(ih->fd_);
+            auto *pool = disk_buffer_pool_->fetch_pool(fname);
+            pool->flush_all_pages(ih->fd_);
+            disk_buffer_pool_->delete_pool(fname);
+        } else {
+            buffer_pool_manager_->flush_all_pages(ih->fd_);
+            buffer_pool_manager_->flush_all_pages(ih->fd_);
+        }
         disk_manager_->close_file(ih->fd_);
-        delete []data;
+        delete[] data;
     }
 };

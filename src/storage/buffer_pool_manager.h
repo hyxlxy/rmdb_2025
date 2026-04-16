@@ -22,6 +22,7 @@ See the Mulan PSL v2 for more details. */
 #include "errors.h"
 #include "page.h"
 #include "replacer/lru_replacer.h"
+#include "replacer/clock_replacer.h"
 #include "replacer/replacer.h"
 
 class BufferPoolManager
@@ -41,15 +42,11 @@ public:
     {
         // 为buffer pool分配一块连续的内存空间
         pages_ = new Page[pool_size_];
-        // 可以被Replacer改变
-        if (REPLACER_TYPE.compare("LRU"))
-            replacer_ = new LRUReplacer(pool_size_);
-        else if (REPLACER_TYPE.compare("CLOCK"))
-            replacer_ = new LRUReplacer(pool_size_);
+        // compare() 返回 0 表示相等；用 == 0 判断
+        if (REPLACER_TYPE == "CLOCK")
+            replacer_ = new ClockReplacer(pool_size_);
         else
-        {
             replacer_ = new LRUReplacer(pool_size_);
-        }
         // 初始化时，所有的page都在free_list_中
         for (size_t i = 0; i < pool_size_; ++i)
         {
@@ -68,6 +65,8 @@ public:
      * @param {Page*} page 脏页
      */
     static void mark_dirty(Page *page) { page->is_dirty_ = true; }
+
+    size_t get_size() const { return pool_size_; }
 
 public:
     Page *fetch_page(PageId page_id);

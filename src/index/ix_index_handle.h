@@ -225,6 +225,8 @@ public:
 
     ~IxIndexHandle();
 
+    BufferPoolManager *get_bpm() { return buffer_pool_manager_; }
+
     // for search
     bool get_value(const char *key, std::vector<Rid> *result, Transaction *transaction);
 

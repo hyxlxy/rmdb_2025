@@ -30,6 +30,7 @@ See the Mulan PSL v2 for more details. */
 #include "analyze/analyze.h"
 #include "record/mvcc_record_manager.h"
 #include "execution/mvcc_executor_base.h"
+#include "storage/disk_buffer_pool.h"
 #include "portal.h"
 
 #define SOCK_PORT 8765
@@ -43,9 +44,12 @@ extern bool output_file_enabled;
 
 // 构建全局所需的管理器对象
 auto disk_manager = std::make_unique<DiskManager>();
-auto buffer_pool_manager = std::make_unique<BufferPoolManager>(BUFFER_POOL_SIZE, disk_manager.get());
-auto rm_manager = std::make_unique<RmManager>(disk_manager.get(), buffer_pool_manager.get());
-auto ix_manager = std::make_unique<IxManager>(disk_manager.get(), buffer_pool_manager.get());
+// 单一大池保留给 recovery / log 等需要全局访问的组件
+auto buffer_pool_manager = std::make_unique<BufferPoolManager>(BUFFER_POOL_SIZE / 4, disk_manager.get());
+// 分池管理器：RmManager/IxManager 各自按文件申请独立的 buffer 切片
+auto disk_buffer_pool = std::make_unique<BufferPool>(BUFFER_POOL_SIZE - BUFFER_POOL_SIZE / 4, disk_manager.get());
+auto rm_manager = std::make_unique<RmManager>(disk_manager.get(), disk_buffer_pool.get());
+auto ix_manager = std::make_unique<IxManager>(disk_manager.get(), disk_buffer_pool.get());
 auto sm_manager = std::make_unique<SmManager>(disk_manager.get(), buffer_pool_manager.get(), rm_manager.get(), ix_manager.get());
 auto lock_manager = std::make_unique<LockManager>();
 auto txn_manager = std::make_unique<TransactionManager>(lock_manager.get(), sm_manager.get());
@@ -153,6 +157,15 @@ void *client_handler(void *sock_fd)
         "establish client connection, sockfd: " + std::to_string(fd) + "\n";
     std::cout << output;
 
+    // 每个线程独占一个 scanner，避免每条 SQL 都 init/destroy
+    yyscan_t scanner = nullptr;
+    if (yylex_init(&scanner) != 0) {
+        std::cerr << "Failed to initialize scanner for client " << fd << std::endl;
+        close(fd);
+        delete[] data_send;
+        return nullptr;
+    }
+
     while (true)
     {
         memset(data_recv, 0, BUFFER_LENGTH);
@@ -201,22 +214,10 @@ void *client_handler(void *sock_fd)
             SetTransaction(&txn_id, context);
         }
 
-        YY_BUFFER_STATE buf = nullptr;
-        yyscan_t scanner = nullptr;
-        bool scanner_initialized = yylex_init(&scanner) == 0;
-        if (!scanner_initialized)
-        {
-            std::string str = "parser init error\n";
-            memcpy(data_send, str.c_str(), str.length());
-            data_send[str.length()] = '\0';
-            offset = str.length();
-        }
-        else
-        {
-            buf = yy_scan_string(data_recv, scanner);
-        }
+        // 复用线程级 scanner（已在循环外初始化）
+        YY_BUFFER_STATE buf = yy_scan_string(data_recv, scanner);
 
-        if (scanner_initialized && yyparse(scanner) == 0)
+        if (yyparse(scanner) == 0)
         {
             if (ast::parse_tree != nullptr)
             {
@@ -355,18 +356,15 @@ void *client_handler(void *sock_fd)
             }
         }
 
-        if (buf != nullptr && scanner_initialized)
-        {
+        // 释放本次请求的 lex buffer（scanner 本身保留复用）
+        if (buf != nullptr) {
             yy_delete_buffer(buf, scanner);
-        }
-        if (scanner_initialized)
-        {
-            yylex_destroy(scanner);
         }
         // future TODO: 格式化 sql_handler.result, 传给客户端
         // send result with fixed format, use protobuf in the future
         if (write(fd, data_send, offset + 1) == -1)
         {
+            delete context;
             break;
         }
         // 如果是单挑语句，需要按照一个完整的事务来执行，所以执行完当前语句后，自动提交事务
@@ -375,10 +373,13 @@ void *client_handler(void *sock_fd)
             txn_manager->commit(context->txn_, context->log_mgr_);
             txn_id = INVALID_TXN_ID; // 自动提交后重置事务ID
         }
+        delete context;
     }
 
     // Clear
-    close(fd);          // close a file descriptor.
+    close(fd);
+    yylex_destroy(scanner); // 释放线程级 scanner
+    delete[] data_send;
     pthread_exit(NULL); // terminate calling thread!
 }
 
