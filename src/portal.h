@@ -221,16 +221,11 @@ public:
         {
             if (x->tag == T_SeqScan)
             {
-                // **修复：只在有事务上下文时才使用MVCC执行器**
-                if (ENABLE_MVCC && context != nullptr && context->txn_ != nullptr) {
-                    return std::make_unique<SeqScanExecutor>(sm_manager_, x->tab_name_, x->conds_, context);
-                } else {
-                    return std::make_unique<SeqScanExecutor>(sm_manager_, x->tab_name_, x->conds_, context);
-                }
+                return std::make_unique<SeqScanExecutor>(sm_manager_, x->tab_name_, x->conds_, context, x->projection_col_);
             }
             else
             {
-                return std::make_unique<IndexScanExecutor>(sm_manager_, x->tab_name_, x->conds_, x->index_col_names_, context);
+                return std::make_unique<IndexScanExecutor>(sm_manager_, x->tab_name_, x->conds_, x->index_col_names_, context, x->projection_col_);
             }
         }
         else if (auto x = std::dynamic_pointer_cast<JoinPlan>(plan))

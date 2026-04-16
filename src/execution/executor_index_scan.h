@@ -40,17 +40,25 @@ private:
     std::unique_ptr<RmRecord> rm_record_;
     constexpr static int int_min_ = INT32_MIN;
     constexpr static int int_max_ = INT32_MAX;
-    // 注意：FLT_MIN 是最小正数，不是最小负数，这里下界应为 -FLT_MAX
     constexpr static float float_min_ = -FLT_MAX;
     constexpr static float float_max_ = FLT_MAX;
+
+    // 投影下推
+    std::vector<ColMeta> proj_cols_;
+    std::vector<int>     proj_offsets_;
+    std::vector<int>     proj_lens_;
+    size_t               proj_len_ = 0;
+    char                *proj_buf_ = nullptr;
 
 public:
     IndexScanExecutor(SmManager *sm_manager, std::string tab_name, std::vector<Condition> conds,
                       std::vector<std::string> index_col_names,
-                      Context *context) : sm_manager_(sm_manager), tab_name_(std::move(tab_name)),
-                                          conds_(conds),     // 用于索引区间生成
-                                          raw_conds_(conds), // 保留原始where条件
-                                          index_col_names_(std::move(index_col_names))
+                      Context *context,
+                      std::vector<TabCol> projection_col = {})
+        : sm_manager_(sm_manager), tab_name_(std::move(tab_name)),
+          conds_(conds),
+          raw_conds_(conds),
+          index_col_names_(std::move(index_col_names))
     {
         context_ = context;
         tab_ = sm_manager_->db_.get_table(tab_name_);
@@ -110,7 +118,30 @@ public:
             }
         }
         conds_ = index_optimized_conditions;
+
+        // 构建投影元数据（与 SeqScanExecutor 相同模式）
+        if (!projection_col.empty()) {
+            std::unordered_set<std::string> seen;
+            size_t off = 0;
+            for (auto &tc : projection_col) {
+                if (seen.count(tc.col_name)) continue;
+                seen.insert(tc.col_name);
+                auto it = std::find_if(cols_.begin(), cols_.end(),
+                    [&](const ColMeta &c){ return c.name == tc.col_name; });
+                if (it == cols_.end()) continue;
+                proj_offsets_.push_back(it->offset);
+                proj_lens_.push_back(it->len);
+                proj_len_ += it->len;
+                ColMeta cm = *it;
+                cm.offset = off;
+                off += cm.len;
+                proj_cols_.push_back(cm);
+            }
+            if (proj_len_ > 0) proj_buf_ = new char[proj_len_];
+        }
     }
+
+    ~IndexScanExecutor() { delete[] proj_buf_; }
 
     void beginTuple() override
     {
@@ -399,6 +430,20 @@ public:
         if (record && record->data && rm_record_->data) {
             memcpy(record->data, rm_record_->data, rm_record_->size);
         }
+
+        // 投影下推
+        if (proj_buf_ != nullptr) {
+            for (size_t i = 0; i < proj_offsets_.size(); ++i) {
+                memcpy(proj_buf_ + proj_cols_[i].offset,
+                       record->data + proj_offsets_[i],
+                       proj_lens_[i]);
+            }
+            auto rec = std::make_unique<RmRecord>();
+            rec->data       = proj_buf_;
+            rec->size       = static_cast<int>(proj_len_);
+            rec->allocated_ = false;
+            return rec;
+        }
         return record;
     }
 
@@ -406,9 +451,9 @@ public:
 
     bool is_end() const { return scan_->is_end(); }
 
-    const std::vector<ColMeta> &cols() const override { return cols_; }
+    const std::vector<ColMeta> &cols() const override { return proj_buf_ ? proj_cols_ : cols_; }
 
-    size_t tupleLen() const override { return len_; }
+    size_t tupleLen() const override { return proj_buf_ ? proj_len_ : len_; }
 
     // 根据不同的列值类型设置不同的最大值
     // int   类型范围 int_min_ ~ int_max_

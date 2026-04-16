@@ -531,6 +531,32 @@ std::shared_ptr<Plan> Planner::make_one_rel(std::shared_ptr<Query> query)
 {
     auto x = std::dynamic_pointer_cast<ast::SelectStmt>(query->parse);
     std::vector<std::string> tables = query->tables;
+
+    // **投影下推：计算每张表实际需要的列**
+    // select_all 时不做裁剪，否则收集 SELECT/WHERE/GROUP BY/ORDER BY 中引用的列
+    std::map<std::string, std::vector<TabCol>> col_usage_;
+    bool is_select_all = query->is_select_all;
+    if (!is_select_all) {
+        // SELECT 列
+        for (auto &col : query->cols) {
+            if (col.col_name != "*")
+                col_usage_[col.tab_name].push_back(col);
+        }
+        // GROUP BY 列（ast::Expr，提取 ast::Col）
+        for (auto &expr : query->group_by) {
+            if (auto col_expr = std::dynamic_pointer_cast<ast::Col>(expr)) {
+                TabCol tc; tc.tab_name = col_expr->tab_name; tc.col_name = col_expr->col_name;
+                col_usage_[tc.tab_name].push_back(tc);
+            }
+        }
+        // WHERE 条件列
+        for (auto &cond : query->conds) {
+            if (cond.is_rhs_val) continue;
+            col_usage_[cond.lhs_col.tab_name].push_back(cond.lhs_col);
+            col_usage_[cond.rhs_col.tab_name].push_back(cond.rhs_col);
+        }
+    }
+
     // // Scan table , 生成表算子列表tab_nodes
     std::vector<std::shared_ptr<Plan>> table_scan_executors(tables.size());
     for (size_t i = 0; i < tables.size(); i++)
@@ -542,14 +568,13 @@ std::shared_ptr<Plan> Planner::make_one_rel(std::shared_ptr<Query> query)
         if (index_exist == false)
         { // 该表没有索引
             index_col_names.clear();
-            // std::cout << "DEBUG: Using SeqScan for table " << tables[i] << std::endl;
             table_scan_executors[i] =
-                std::make_shared<ScanPlan>(T_SeqScan, sm_manager_, tables[i], curr_conds, index_col_names);
+                std::make_shared<ScanPlan>(T_SeqScan, sm_manager_, tables[i], curr_conds, index_col_names, col_usage_[tables[i]]);
         }
         else
         { // 存在索引
             table_scan_executors[i] =
-                std::make_shared<ScanPlan>(T_IndexScan, sm_manager_, tables[i], curr_conds, index_col_names);
+                std::make_shared<ScanPlan>(T_IndexScan, sm_manager_, tables[i], curr_conds, index_col_names, col_usage_[tables[i]]);
         }
     }
     // 只有一个表，不需要join。

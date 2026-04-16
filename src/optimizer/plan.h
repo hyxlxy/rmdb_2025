@@ -71,7 +71,9 @@ public:
 class ScanPlan : public Plan
 {
 public:
-    ScanPlan(PlanTag tag, SmManager *sm_manager, std::string tab_name, std::vector<Condition> conds, std::vector<std::string> index_col_names)
+    ScanPlan(PlanTag tag, SmManager *sm_manager, std::string tab_name,
+             std::vector<Condition> conds, std::vector<std::string> index_col_names,
+             std::vector<TabCol> projection_col = {})
     {
         Plan::tag = tag;
         tab_name_ = std::move(tab_name);
@@ -81,6 +83,7 @@ public:
         len_ = cols_.back().offset + cols_.back().len;
         fed_conds_ = conds_;
         index_col_names_ = index_col_names;
+        projection_col_ = std::move(projection_col);
     }
     ~ScanPlan() {}
     // 以下变量同ScanExecutor中的变量
@@ -90,6 +93,7 @@ public:
     size_t len_;
     std::vector<Condition> fed_conds_;
     std::vector<std::string> index_col_names_;
+    std::vector<TabCol> projection_col_; // 投影下推：只读取需要的列
 };
 
 class GroupPlan : public Plan
