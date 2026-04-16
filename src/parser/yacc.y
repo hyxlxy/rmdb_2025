@@ -12,6 +12,17 @@ void yyerror(YYLTYPE *locp, void *yyscanner, const char* s) {
 }
 
 using namespace ast;
+
+// 将裸指针 vector 转成 shared_ptr vector 并 delete 原始 vector
+template<typename T>
+static std::vector<std::shared_ptr<T>> adopt(std::vector<T*>* raw) {
+    if (!raw) return {};
+    std::vector<std::shared_ptr<T>> result;
+    result.reserve(raw->size());
+    for (T* p : *raw) result.emplace_back(p);
+    delete raw;
+    return result;
+}
 %}
 
 // request a pure (reentrant) parser
@@ -74,7 +85,7 @@ WHERE UPDATE SET SELECT INT CHAR FLOAT INDEX AND JOIN EXIT HELP TXN_BEGIN TXN_CO
 start:
         stmt ';'
     {
-        parse_tree = $1;
+        parse_tree = std::shared_ptr<ast::TreeNode>($1);
         YYACCEPT;
     }
     |   HELP
@@ -117,98 +128,98 @@ stmt:
 txnStmt:
         TXN_BEGIN
     {
-        $$ = std::make_shared<TxnBegin>();
+        $$ = new TxnBegin();
     }
     |   TXN_COMMIT
     {
-        $$ = std::make_shared<TxnCommit>();
+        $$ = new TxnCommit();
     }
     |   TXN_ABORT
     {
-        $$ = std::make_shared<TxnAbort>();
+        $$ = new TxnAbort();
     }
     | TXN_ROLLBACK
     {
-        $$ = std::make_shared<TxnRollback>();
+        $$ = new TxnRollback();
     }
     ;
 
 dbStmt:
         SHOW TABLES
     {
-        $$ = std::make_shared<ShowTables>();
+        $$ = new ShowTables();
     }
     |   SHOW INDEX FROM tbName
     {
-        $$ = std::make_shared<ShowIndex>($4);
+        $$ = new ShowIndex($4);
     }
     ;
 
 setStmt:
         SET set_knob_type '=' VALUE_BOOL
     {
-        $$ = std::make_shared<SetStmt>($2, $4);
+        $$ = new SetStmt($2, $4);
     }
     ;
 ddl:
         CREATE TABLE tbName '(' fieldList ')'
     {
-        $$ = std::make_shared<CreateTable>($3, $5);
+        $$ = new CreateTable($3, adopt<Field>($5));
     }
     |   DROP TABLE tbName
     {
-        $$ = std::make_shared<DropTable>($3);
+        $$ = new DropTable($3);
     }
     |   DESC tbName
     {
-        $$ = std::make_shared<DescTable>($2);
+        $$ = new DescTable($2);
     }
     |   CREATE INDEX tbName '(' colNameList ')'
     {
-        $$ = std::make_shared<CreateIndex>($3, $5);
+        $$ = new CreateIndex($3, $5);
     }
     |   DROP INDEX tbName '(' colNameList ')'
     {
-        $$ = std::make_shared<DropIndex>($3, $5);
+        $$ = new DropIndex($3, $5);
     }
     |   CREATE STATIC_CHECKPOINT
     {
-        $$ = std::make_shared<CreateStaticCheckpoint>();
+        $$ = new CreateStaticCheckpoint();
     }
     ;
 
 dml:
         INSERT INTO tbName VALUES '(' valueList ')'
     {
-        $$ = std::make_shared<InsertStmt>($3, $6);
+        $$ = new InsertStmt($3, adopt<Value>($6));
     }
     |   DELETE FROM tbName optWhereClause
     {
-        $$ = std::make_shared<DeleteStmt>($3, $4);
+        $$ = new DeleteStmt($3, adopt<BinaryExpr>($4));
     }
     |   UPDATE tbName SET setClauses optWhereClause
     {
-        $$ = std::make_shared<UpdateStmt>($2, $4, $5);
+        $$ = new UpdateStmt($2, adopt<SetClause>($4), adopt<BinaryExpr>($5));
     }
     | SELECT selector FROM tableList optWhereClause groupby_clause having_clause opt_order_clause opt_limit_clause
     {
-        $$ = std::make_shared<SelectStmt>($2, $4, $5, $8, $6, $7, $9);
+        $$ = new SelectStmt(adopt<Expr>($2), std::shared_ptr<TreeNode>($4), adopt<BinaryExpr>($5), adopt<OrderBy>($8), adopt<Expr>($6), std::shared_ptr<Expr>($7), $9);
     }
     | LOAD file_path INTO tbName
     {
-        $$ = std::make_shared<LoadStmt>($2, $4);
+        $$ = new LoadStmt($2, $4);
     }
     ;
 
 explainStmt:
         EXPLAIN dml
     {
-        $$ = std::make_shared<ExplainStmt>($2);
+        $$ = new ExplainStmt(std::shared_ptr<TreeNode>($2));
     }
     ;
 
 groupby_clause
-    : /* 空 */ { $$ = {}; }
+    : /* 空 */ { $$ = nullptr; }
     | GROUP BY colList { $$ = $3; }
     ;
 
@@ -224,7 +235,7 @@ logical_expr:
     }
     |   logical_expr AND logical_expr
     {
-        $$ = std::static_pointer_cast<Expr>(std::make_shared<LogicalExpr>($1, LogicalExpr::AND, $3));
+        $$ = new LogicalExpr(std::shared_ptr<Expr>($1), LogicalExpr::AND, std::shared_ptr<Expr>($3));
     }
     ;
 
@@ -232,22 +243,22 @@ compare_expr:
         agg_expr op value
     {
         // 聚合函数与常量比较，如 COUNT(*) > 1
-        $$ = std::static_pointer_cast<Expr>(std::make_shared<CompareExpr>($1, $2, std::static_pointer_cast<Expr>($3)));
+        $$ = new CompareExpr(std::shared_ptr<Expr>($1), $2, std::shared_ptr<Expr>($3));
     }
     |   agg_expr op agg_expr
     {
         // 聚合函数之间比较，如 MIN(score) > MAX(other)
-        $$ = std::static_pointer_cast<Expr>(std::make_shared<CompareExpr>($1, $2, $3));
+        $$ = new CompareExpr(std::shared_ptr<Expr>($1), $2, std::shared_ptr<Expr>($3));
     }
     |   col op value
     {
         // 列与常量比较
-        $$ = std::static_pointer_cast<Expr>(std::make_shared<CompareExpr>(std::static_pointer_cast<Expr>($1), $2, std::static_pointer_cast<Expr>($3)));
+        $$ = new CompareExpr(std::shared_ptr<Expr>(static_cast<Expr*>($1)), $2, std::shared_ptr<Expr>($3));
     }
     |   col op agg_expr
     {
         // 列与聚合函数比较
-        $$ = std::static_pointer_cast<Expr>(std::make_shared<CompareExpr>(std::static_pointer_cast<Expr>($1), $2, $3));
+        $$ = new CompareExpr(std::shared_ptr<Expr>(static_cast<Expr*>($1)), $2, std::shared_ptr<Expr>($3));
     }
     ;
 
@@ -257,35 +268,35 @@ opt_order_clause:
     {
         $$ = $3;
     }
-    | /* 空 */ { $$ = {}; }
+    | /* 空 */ { $$ = nullptr; }
     ;
 
 order_clause_list:
       order_clause
     {
-        $$ = std::vector<std::shared_ptr<OrderBy>>{$1};
+        $$ = new std::vector<OrderBy*>{$1};
     }
     | order_clause_list ',' order_clause
     {
-        $$.push_back($3);
+        $$->push_back($3);
     }
     ;
 
 order_clause:
       col opt_asc_desc
     {
-        $$ = std::make_shared<OrderBy>($1, $2);
+        $$ = new OrderBy(std::shared_ptr<Col>($1), $2);
     }
     ;
 
 fieldList:
         field
     {
-        $$ = std::vector<std::shared_ptr<Field>>{$1};
+        $$ = new std::vector<Field*>{$1};
     }
     |   fieldList ',' field
     {
-        $$.push_back($3);
+        $$->push_back($3);
     }
     ;
 
@@ -303,80 +314,80 @@ colNameList:
 field:
         colName type
     {
-        $$ = std::make_shared<ColDef>($1, $2);
+        $$ = new ColDef($1, std::shared_ptr<TypeLen>($2));
     }
     ;
 
 type:
         INT
     {
-        $$ = std::make_shared<TypeLen>(SV_TYPE_INT, sizeof(int));
+        $$ = new TypeLen(SV_TYPE_INT, sizeof(int));
     }
     |   CHAR '(' VALUE_INT ')'
     {
-        $$ = std::make_shared<TypeLen>(SV_TYPE_STRING, $3);
+        $$ = new TypeLen(SV_TYPE_STRING, $3);
     }
     |   FLOAT
     {
-        $$ = std::make_shared<TypeLen>(SV_TYPE_FLOAT, sizeof(float));
+        $$ = new TypeLen(SV_TYPE_FLOAT, sizeof(float));
     }
     ;
 
 valueList:
         value
     {
-        $$ = std::vector<std::shared_ptr<Value>>{$1};
+        $$ = new std::vector<Value*>{$1};
     }
     |   valueList ',' value
     {
-        $$.push_back($3);
+        $$->push_back($3);
     }
     ;
 
 value:
         VALUE_INT
     {
-        $$ = std::make_shared<IntLit>($1);
+        $$ = new IntLit($1);
     }
     |   '+' VALUE_INT %prec UMINUS
     {
-        $$ = std::make_shared<IntLit>($2);
+        $$ = new IntLit($2);
     }
     |   '-' VALUE_INT %prec UMINUS
     {
-        $$ = std::make_shared<IntLit>(-$2);
+        $$ = new IntLit(-$2);
     }
     |   VALUE_FLOAT
     {
-        $$ = std::make_shared<FloatLit>($1);
+        $$ = new FloatLit($1);
     }
     |   '+' VALUE_FLOAT %prec UMINUS
     {
-        $$ = std::make_shared<FloatLit>($2);
+        $$ = new FloatLit($2);
     }
     |   '-' VALUE_FLOAT %prec UMINUS
     {
-        $$ = std::make_shared<FloatLit>(-$2);
+        $$ = new FloatLit(-$2);
     }
     |   VALUE_STRING
     {
-        $$ = std::make_shared<StringLit>($1);
+        $$ = new StringLit($1);
     }
     |   VALUE_BOOL
     {
-        $$ = std::make_shared<BoolLit>($1);
+        $$ = new BoolLit($1);
     }
     ;
 
 condition:
         col op expr
     {
-        $$ = std::make_shared<BinaryExpr>($1, $2, $3);
+        $$ = new BinaryExpr(std::shared_ptr<Col>($1), $2, std::shared_ptr<Expr>($3));
     }
     ;
 
 optWhereClause:
-        /* epsilon */ { /* ignore*/ }
+        /* epsilon */ { $$ = nullptr; }
     |   WHERE whereClause
     {
         $$ = $2;
@@ -386,33 +397,33 @@ optWhereClause:
 whereClause:
         condition
     {
-        $$ = std::vector<std::shared_ptr<BinaryExpr>>{$1};
+        $$ = new std::vector<BinaryExpr*>{$1};
     }
     |   whereClause AND condition
     {
-        $$.push_back($3);
+        $$->push_back($3);
     }
     ;
 
 col:
         tbName '.' colName
     {
-        $$ = std::make_shared<Col>($1, $3);
+        $$ = new Col($1, $3);
     }
     |   colName
     {
-        $$ = std::make_shared<Col>("", $1);
+        $$ = new Col("", $1);
     }
     ;
 
 colList:
       colItem
     {
-        $$.push_back($1);
+        $$ = new std::vector<Expr*>{$1};
     }
     | colList ',' colItem
     {
-        $$.push_back($3);
+        $$->push_back($3);
     }
     ;
 
@@ -420,7 +431,7 @@ colList:
 colItem:
       col
     {
-        $$ = $1;
+        $$ = static_cast<Expr*>($1);
     }
     | agg_expr
     {
@@ -428,11 +439,11 @@ colItem:
     }
     | col AS IDENTIFIER
     {
-        $$ = std::make_shared<AliasExpr>($1, $3);
+        $$ = new AliasExpr(std::shared_ptr<Expr>(static_cast<Expr*>($1)), $3);
     }
     | agg_expr AS IDENTIFIER
     {
-        $$ = std::make_shared<AliasExpr>($1, $3);
+        $$ = new AliasExpr(std::shared_ptr<Expr>($1), $3);
     }
     ;
 
@@ -440,27 +451,27 @@ colItem:
 agg_expr:
       COUNT '(' '*' ')'
     {
-        $$ = std::make_shared<AggExpr>(AGG_COUNT, nullptr);
+        $$ = new AggExpr(AGG_COUNT, nullptr);
     }
     | COUNT '(' col ')'
     {
-        $$ = std::make_shared<AggExpr>(AGG_COUNT, $3);
+        $$ = new AggExpr(AGG_COUNT, std::shared_ptr<Expr>(static_cast<Expr*>($3)));
     }
     | SUM '(' col ')'
     {
-        $$ = std::make_shared<AggExpr>(AGG_SUM, $3);
+        $$ = new AggExpr(AGG_SUM, std::shared_ptr<Expr>(static_cast<Expr*>($3)));
     }
     | MIN '(' col ')'
     {
-        $$ = std::make_shared<AggExpr>(AGG_MIN, $3);
+        $$ = new AggExpr(AGG_MIN, std::shared_ptr<Expr>(static_cast<Expr*>($3)));
     }
     | MAX '(' col ')'
     {
-        $$ = std::make_shared<AggExpr>(AGG_MAX, $3);
+        $$ = new AggExpr(AGG_MAX, std::shared_ptr<Expr>(static_cast<Expr*>($3)));
     }
     | AVG '(' col ')'
     {
-        $$ = std::make_shared<AggExpr>(AGG_AVG, $3);
+        $$ = new AggExpr(AGG_AVG, std::shared_ptr<Expr>(static_cast<Expr*>($3)));
     }
     ;
 
@@ -494,15 +505,15 @@ op:
 expr:
         value
     {
-        $$ = std::static_pointer_cast<Expr>($1);
+        $$ = static_cast<Expr*>($1);
     }
     |   col
     {
-        $$ = std::static_pointer_cast<Expr>($1);
+        $$ = static_cast<Expr*>($1);
     }
     |   agg_expr
     {
-        $$ = std::static_pointer_cast<Expr>($1);
+        $$ = $1;
     }
     |   '+' expr %prec UMINUS
     {
@@ -512,31 +523,33 @@ expr:
     |   '-' expr %prec UMINUS
     {
         /* 一元-操作符，对数值取反 */
-        if (auto intLit = std::dynamic_pointer_cast<IntLit>($2)) {
-            $$ = std::make_shared<IntLit>(-intLit->val);
-        } else if (auto floatLit = std::dynamic_pointer_cast<FloatLit>($2)) {
-            $$ = std::make_shared<FloatLit>(-floatLit->val);
+        if (auto intLit = dynamic_cast<IntLit*>($2)) {
+            intLit->val = -intLit->val;
+            $$ = intLit;
+        } else if (auto floatLit = dynamic_cast<FloatLit*>($2)) {
+            floatLit->val = -floatLit->val;
+            $$ = floatLit;
         } else {
             /* 如果不是简单数值，创建一个取反的算术表达式 */
-            auto zero = std::make_shared<IntLit>(0);
-            $$ = std::make_shared<ArithExpr>(std::static_pointer_cast<Expr>(zero), ArithOp::SUB, $2);
+            auto zero = new IntLit(0);
+            $$ = new ArithExpr(std::shared_ptr<Expr>(zero), ArithOp::SUB, std::shared_ptr<Expr>($2));
         }
     }
     |   expr '+' expr
     {
-        $$ = std::make_shared<ArithExpr>($1, ArithOp::ADD, $3);
+        $$ = new ArithExpr(std::shared_ptr<Expr>($1), ArithOp::ADD, std::shared_ptr<Expr>($3));
     }
     |   expr '-' expr
     {
-        $$ = std::make_shared<ArithExpr>($1, ArithOp::SUB, $3);
+        $$ = new ArithExpr(std::shared_ptr<Expr>($1), ArithOp::SUB, std::shared_ptr<Expr>($3));
     }
     |   expr '*' expr
     {
-        $$ = std::make_shared<ArithExpr>($1, ArithOp::MUL, $3);
+        $$ = new ArithExpr(std::shared_ptr<Expr>($1), ArithOp::MUL, std::shared_ptr<Expr>($3));
     }
     |   expr '/' expr
     {
-        $$ = std::make_shared<ArithExpr>($1, ArithOp::DIV, $3);
+        $$ = new ArithExpr(std::shared_ptr<Expr>($1), ArithOp::DIV, std::shared_ptr<Expr>($3));
     }
     |   '(' expr ')'
     {
@@ -547,25 +560,25 @@ expr:
 setClauses:
         setClause
     {
-        $$ = std::vector<std::shared_ptr<SetClause>>{$1};
+        $$ = new std::vector<SetClause*>{$1};
     }
     |   setClauses ',' setClause
     {
-        $$.push_back($3);
+        $$->push_back($3);
     }
     ;
 
 setClause:
         colName '=' expr
     {
-        $$ = std::make_shared<SetClause>($1, $3);
+        $$ = new SetClause($1, std::shared_ptr<Expr>($3));
     }
     ;
 
 selector:
         '*'
     {
-        $$ = {};
+        $$ = nullptr;
     }
     |   colList
     ;
@@ -577,34 +590,34 @@ tableList:
     }
     |   tableList JOIN tableRef ON whereClause
     {
-        $$ = std::make_shared<JoinExpr>($1, $3, $5, INNER_JOIN);
+        $$ = new JoinExpr(std::shared_ptr<TreeNode>($1), std::shared_ptr<TreeNode>($3), adopt<BinaryExpr>($5), INNER_JOIN);
     }
     |   tableList JOIN tableRef
     {
-        $$ = std::make_shared<JoinExpr>($1, $3, std::vector<std::shared_ptr<BinaryExpr>>{}, INNER_JOIN);
+        $$ = new JoinExpr(std::shared_ptr<TreeNode>($1), std::shared_ptr<TreeNode>($3), {}, INNER_JOIN);
     }
     |   tableList SEMI JOIN tableRef ON whereClause
     {
-        $$ = std::make_shared<JoinExpr>($1, $4, $6, SEMI_JOIN);
+        $$ = new JoinExpr(std::shared_ptr<TreeNode>($1), std::shared_ptr<TreeNode>($4), adopt<BinaryExpr>($6), SEMI_JOIN);
     }
     |   tableList ',' tableRef
     {
-        $$ = std::make_shared<JoinExpr>($1, $3, std::vector<std::shared_ptr<BinaryExpr>>{}, INNER_JOIN);
+        $$ = new JoinExpr(std::shared_ptr<TreeNode>($1), std::shared_ptr<TreeNode>($3), {}, INNER_JOIN);
     }
     ;
 
 tableRef:
         tbName
     {
-        $$ = std::make_shared<TableRef>($1);
+        $$ = new TableRef($1);
     }
     |   tbName AS alias
     {
-        $$ = std::make_shared<TableRef>($1, $3);
+        $$ = new TableRef($1, $3);
     }
     |   tbName alias
     {
-        $$ = std::make_shared<TableRef>($1, $2);
+        $$ = new TableRef($1, $2);
     }
     ;
 
@@ -633,7 +646,7 @@ set_knob_type:
     ENABLE_NESTLOOP { $$ = EnableNestLoop; }
     |   ENABLE_SORTMERGE { $$ = EnableSortMerge; }
     ;
-    
+
 file_path:
     FILE_NAME
     {

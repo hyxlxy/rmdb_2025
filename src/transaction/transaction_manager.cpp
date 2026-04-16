@@ -215,6 +215,17 @@ void TransactionManager::commit(Transaction *txn, LogManager *log_manager)
     // 在MVCC模式下，需要确保所有版本都已正确持久化后再清理
     if (ENABLE_MVCC)
     {
+        // 清除 per-file MvccMap 条目（提交后 erase，已提交记录读零开销）
+        if (sm_manager_ != nullptr) {
+            for (auto &wr : *write_set) {
+                auto it = sm_manager_->fhs_.find(wr->GetTableName());
+                if (it != sm_manager_->fhs_.end()) {
+                    int type = (wr->GetWriteType() == WType::DELETE_TUPLE) ? 1 : 0;
+                    it->second->commit_mvcc(type, wr->GetRid(), txn->get_transaction_id());
+                }
+            }
+        }
+
         // 清空MVCC撤销日志
         txn->get_undo_logs().clear();
 
@@ -315,7 +326,16 @@ void TransactionManager::abort(Transaction *txn, LogManager *log_manager)
             }
         }
 
-        // 清理写集合
+        // 清理写集合（abort 后也要清 MvccMap，因为物理记录已撤销）
+        if (sm_manager_ != nullptr) {
+            for (auto &wr : *write_set) {
+                auto it = sm_manager_->fhs_.find(wr->GetTableName());
+                if (it != sm_manager_->fhs_.end()) {
+                    int type = (wr->GetWriteType() == WType::DELETE_TUPLE) ? 1 : 0;
+                    it->second->commit_mvcc(type, wr->GetRid(), txn->get_transaction_id());
+                }
+            }
+        }
         for (auto &write_record : *write_set)
         {
             delete write_record;

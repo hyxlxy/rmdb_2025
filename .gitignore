@@ -10,7 +10,7 @@ lib/
 *.so
 *.a
 *.exe
-*.txt
+
 
 # 自动生成的解析器文件
 src/parser/yacc.tab.cpp
@@ -25,6 +25,8 @@ src/parser/lex.yy.h
 *.old
 *.out
 *.svg
+*.csv
+table_data/
 # CMake文件
 CMakeCache.txt
 CMakeFiles/
@@ -34,7 +36,7 @@ CMakeFiles/
 temp/
 output.txt
 *.tmp
-*.log
+
 
 # IDE文件
 .vscode/

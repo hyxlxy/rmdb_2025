@@ -121,6 +121,12 @@ Rid RmFileHandle::insert_record(char *buf, Context *context)
 
     buffer_pool_manager_->unpin_page(page_handle.page->get_page_id(), true);
 
+    // MVCC tracking：标记为该事务未提交的插入
+    if (context && context->txn_) {
+        int slot = rid.page_no * file_hdr_.num_records_per_page + rid.slot_no;
+        mvcc_map_.insert_record(slot, context->txn_->get_transaction_id());
+    }
+
     // 释放锁（RAII会自动处理）
     return rid;
 }
@@ -203,6 +209,11 @@ void RmFileHandle::delete_record(const Rid &rid, Context *context)
     {
         release_page_handle(page_handle); // 更新当前页面的句柄
     }
+    // MVCC tracking：标记为该事务未提交的删除
+    if (context && context->txn_) {
+        int slot = rid.page_no * file_hdr_.num_records_per_page + rid.slot_no;
+        mvcc_map_.delete_record(slot, context->txn_->get_transaction_id());
+    }
     buffer_pool_manager_->unpin_page(page_handle.page->get_page_id(), true); // 变为0
 }
 
@@ -244,6 +255,11 @@ void RmFileHandle::update_record(const Rid &rid, char *buf, Context *context)
 
     // 2. 更新记录
     std::memcpy(page_handle.get_slot(rid.slot_no), buf, file_hdr_.record_size); // 位置 内容 大小
+    // MVCC tracking：标记为该事务未提交的更新
+    if (context && context->txn_) {
+        int slot = rid.page_no * file_hdr_.num_records_per_page + rid.slot_no;
+        mvcc_map_.insert_record(slot, context->txn_->get_transaction_id());
+    }
     buffer_pool_manager_->unpin_page(page_handle.page->get_page_id(), true);    // 标记修改过 成为脏页
 }
 

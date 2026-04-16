@@ -195,7 +195,7 @@ void *client_handler(void *sock_fd)
             exit(1);
         }
         
-        std::cout << "Read from client " << fd << ": " << data_recv << std::endl;
+        // std::cout << "Read from client " << fd << ": " << data_recv << "\n";
 
         memset(data_send, '\0', BUFFER_LENGTH);
         offset = 0;

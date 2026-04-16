@@ -411,47 +411,45 @@ namespace ast
     };
 
     // Semantic value
+    // 将 shared_ptr 全部改为裸指针，消除 Bison 每次 shift/reduce 的原子 refcount 开销
     struct SemValue
     {
-        int sv_int;
-        float sv_float;
+        int sv_int = 0;
+        float sv_float = 0.0f;
         std::string sv_str;
-        bool sv_bool;
+        bool sv_bool = false;
         OrderByDir sv_orderby_dir;
         std::vector<std::string> sv_strs;
 
-        std::shared_ptr<TreeNode> sv_node;
-        std::vector<std::shared_ptr<TreeNode>> sv_nodes; // 新增：支持节点列表
+        TreeNode *sv_node = nullptr;
 
         SvCompOp sv_comp_op;
 
-        std::shared_ptr<TypeLen> sv_type_len;
+        TypeLen *sv_type_len = nullptr;
 
-        std::shared_ptr<Field> sv_field;
-        std::vector<std::shared_ptr<Field>> sv_fields;
+        Field *sv_field = nullptr;
+        std::vector<Field*>* sv_fields = nullptr;
 
-        std::shared_ptr<Expr> sv_expr;
+        Expr *sv_expr = nullptr;
         ArithOp sv_arith_op;
 
-        std::shared_ptr<Value> sv_val;
-        std::vector<std::shared_ptr<Value>> sv_vals;
+        Value *sv_val = nullptr;
+        std::vector<Value*>* sv_vals = nullptr;
 
-        std::shared_ptr<Col> sv_col;
-        std::vector<std::shared_ptr<Col>> sv_cols;
+        Col *sv_col = nullptr;
 
-        std::shared_ptr<SetClause> sv_set_clause;
-        std::vector<std::shared_ptr<SetClause>> sv_set_clauses;
+        SetClause *sv_set_clause = nullptr;
+        std::vector<SetClause*>* sv_set_clauses = nullptr;
 
-        std::shared_ptr<BinaryExpr> sv_cond;
-        std::vector<std::shared_ptr<BinaryExpr>> sv_conds;
+        BinaryExpr *sv_cond = nullptr;
+        std::vector<BinaryExpr*>* sv_conds = nullptr;
 
-        std::shared_ptr<OrderBy> sv_orderby;
+        OrderBy *sv_orderby = nullptr;
+        std::vector<OrderBy*>* sv_orderbys = nullptr;
 
         SetKnobType sv_setKnobType;
 
-        std::vector<std::shared_ptr<Expr>> sv_exprs;
-
-        std::vector<std::shared_ptr<OrderBy>> sv_orderbys;
+        std::vector<Expr*>* sv_exprs = nullptr;
     };
 
     extern thread_local std::shared_ptr<ast::TreeNode> parse_tree;

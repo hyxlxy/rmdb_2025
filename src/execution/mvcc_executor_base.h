@@ -58,28 +58,12 @@ protected:
      */
     std::unique_ptr<RmRecord> get_record_mvcc(RmFileHandle *fh, const Rid &rid, Context *context, SmManager *sm_manager)
     {
-        if (!context || !context->txn_)
-            return fh->get_record(rid, context);
-
-        auto mvcc_manager = get_mvcc_manager_from_context(context);
-        if (!mvcc_manager)
-            return fh->get_record(rid, context);
-
-        // 先检查是否存在版本链
-        VersionChain *chain = mvcc_manager->get_version_chain(rid, context->current_table_name_);
-        if (chain == nullptr)
-        {
-            // **性能优化：无 MVCC 版本链 → LOAD 记录，对所有事务可见，直接物理读**
-            return fh->get_record(rid, context);
+        // 快速路径：per-file MvccMap，已提交记录零开销
+        if (context && context->txn_) {
+            txn_id_t txn_id = context->txn_->get_transaction_id();
+            if (!fh->visit(rid, txn_id)) return nullptr;
         }
-
-        TupleVersion *visible_version = mvcc_manager->read_version(rid, context->txn_, context->current_table_name_);
-        if (!visible_version || visible_version->is_deleted)
-            return nullptr;
-
-        auto record = std::make_unique<RmRecord>(visible_version->size);
-        memcpy(record->data, visible_version->data, visible_version->size);
-        return record;
+        return fh->get_record(rid, context);
     }
 
     /**

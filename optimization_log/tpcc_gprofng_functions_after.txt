@@ -1,0 +1,278 @@
+(x86_64-linux-gnu-gp-display-text) Functions sorted by metric: Exclusive Total CPU Time
+
+Excl. Total    Incl. Total     Name
+CPU            CPU
+  sec.      %    sec.      %
+64.555 100.00  64.555 100.00   <Total>
+16.572  25.67  16.602  25.72   write
+ 5.734   8.88   5.764   8.93   read
+ 4.423   6.85   7.085  10.98   <static>@0xaaa3b (<libc.so.6>)
+ 3.653   5.66  13.990  21.67   yyparse()
+ 3.572   5.53   3.603   5.58   ast::SemValue::~SemValue()
+ 3.362   5.21   3.362   5.21   MVCCManager::rollback_transaction(Transaction*)
+ 2.502   3.88   4.893   7.58   ast::SemValue::operator=(ast::SemValue const&) [clone .isra.0]
+ 2.362   3.66   2.362   3.66   mprotect
+ 2.212   3.43   2.262   3.50   std::_Hashtable<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::unique_ptr<VersionChain, std::default_delete<VersionChain> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::unique_ptr<VersionChain, std::default_delete<VersionChain> > > >, std::__detail::_Select1st, std::equal_to<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::hash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<true, false, true> >::_M_find_before_node(unsigned long, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, unsigned long) const
+ 2.021   3.13   2.592   4.01   yylex(ast::SemValue*, YYLTYPE*)
+ 1.851   2.87   1.851   2.87   <static>@0x188051 (<libc.so.6>)
+ 1.681   2.60   7.996  12.39   malloc
+ 0.710   1.10   1.481   2.29   free
+ 0.650   1.01   1.541   2.39   std::_Sp_counted_base<(__gnu_cxx::_Lock_policy)2>::_M_release()
+ 0.620   0.96  58.541  90.68   client_handler(void*)
+ 0.430   0.67   0.430   0.67   open
+ 0.410   0.64   0.410   0.64   <static>@0xd9b0 (<rmdb>)
+ 0.370   0.57   0.680   1.05   std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_assign(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+ 0.360   0.56   1.121   1.74   __dynamic_cast
+ 0.360   0.56   0.360   0.56   pthread_mutex_lock
+ 0.320   0.50   0.721   1.12   MVCCManager::commit_transaction(Transaction*)
+ 0.300   0.47   0.300   0.47   <static>@0xa8d44 (<libc.so.6>)
+ 0.300   0.47   0.931   1.44   MVCCManager::rid_to_key(Rid const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) const [clone .isra.0]
+ 0.260   0.40   8.196  12.70   operator new(unsigned long)
+ 0.250   0.39   0.260   0.40   pthread_mutex_unlock
+ 0.230   0.36   0.230   0.36   <static>@0xa1220 (<libstdc++.so.6.0.33>)
+ 0.230   0.36   0.390   0.60   _IO_file_xsputn
+ 0.220   0.34   0.500   0.78   __cxxabiv1::__si_class_type_info::__do_dyncast(long, __cxxabiv1::__class_type_info::__sub_kind, __cxxabiv1::__class_type_info const*, void const*, __cxxabiv1::__class_type_info const*, void const*, __cxxabiv1::__class_type_info::__dyncast_result&) const
+ 0.220   0.34   0.220   0.34   std::vector<std::shared_ptr<ast::BinaryExpr>, std::allocator<std::shared_ptr<ast::BinaryExpr> > >::operator=(std::vector<std::shared_ptr<ast::BinaryExpr>, std::allocator<std::shared_ptr<ast::BinaryExpr> > > const&) [clone .isra.0]
+ 0.220   0.34   0.370   0.57   void std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_construct<char*>(char*, char*, std::forward_iterator_tag) [clone .isra.0]
+ 0.210   0.33   0.210   0.33   std::_Hashtable<PageId, std::pair<PageId const, int>, std::allocator<std::pair<PageId const, int> >, std::__detail::_Select1st, std::equal_to<PageId>, PageIdHash, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<true, false, true> >::_M_find_before_node(unsigned long, PageId const&, unsigned long) const
+ 0.200   0.31   0.450   0.70   Analyze::convert_sv_value(std::shared_ptr<ast::Value> const&)
+ 0.190   0.29   0.190   0.29   std::_Hashtable<int, std::pair<int const, std::_List_iterator<int> >, std::allocator<std::pair<int const, std::_List_iterator<int> > >, std::__detail::_Select1st, std::equal_to<int>, std::hash<int>, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<false, false, true> >::find(int const&) [clone .isra.0]
+ 0.180   0.28   0.180   0.28   std::vector<std::shared_ptr<ast::Expr>, std::allocator<std::shared_ptr<ast::Expr> > >::operator=(std::vector<std::shared_ptr<ast::Expr>, std::allocator<std::shared_ptr<ast::Expr> > > const&) [clone .isra.0]
+ 0.170   0.26   0.170   0.26   std::vector<std::shared_ptr<ast::OrderBy>, std::allocator<std::shared_ptr<ast::OrderBy> > >::operator=(std::vector<std::shared_ptr<ast::OrderBy>, std::allocator<std::shared_ptr<ast::OrderBy> > > const&) [clone .isra.0]
+ 0.170   0.26   1.131   1.75   void std::vector<Value, std::allocator<Value> >::_M_realloc_insert<Value>(__gnu_cxx::__normal_iterator<Value*, std::vector<Value, std::allocator<Value> > >, Value&&)
+ 0.160   0.25   0.300   0.47   <static>@0x1fefc (<libgcc_s.so.1>)
+ 0.160   0.25   0.240   0.37   <static>@0x4db86 (<libc.so.6>)
+ 0.160   0.25   0.320   0.50   Query::~Query()
+ 0.150   0.23   3.653   5.66   MVCCManager::read_version(Rid const&, Transaction*, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+ 0.150   0.23   0.420   0.65   ast::InsertStmt::~InsertStmt()
+ 0.150   0.23   0.210   0.33   std::__detail::_Map_base<int, std::pair<int const, std::_List_iterator<int> >, std::allocator<std::pair<int const, std::_List_iterator<int> > >, std::__detail::_Select1st, std::equal_to<int>, std::hash<int>, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<false, false, true>, true>::operator[](int const&)
+ 0.140   0.22   2.192   3.39   Analyze::do_analyze(std::shared_ptr<ast::TreeNode>)
+ 0.130   0.20   0.130   0.20   __close_nocancel
+ 0.130   0.20   0.510   0.79   std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_append(char const*, unsigned long)
+ 0.100   0.16   0.100   0.16   <static>@0x5440c (<libc.so.6>)
+ 0.100   0.16   0.100   0.16   __isoc23_strtol
+ 0.100   0.16   0.260   0.40   std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, TabMeta>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, TabMeta> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, TabMeta> > >::find(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) const
+ 0.100   0.16   0.500   0.78   std::shared_ptr<DMLPlan>::shared_ptr<std::allocator<void>, PlanTag, std::shared_ptr<Plan>, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&, std::vector<Value, std::allocator<Value> >&, std::vector<Condition, std::allocator<Condition> >, std::vector<SetClause, std::allocator<SetClause> > >(std::_Sp_alloc_shared_tag<std::allocator<void> >, PlanTag&&, std::shared_ptr<Plan>&&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&, std::vector<Value, std::allocator<Value> >&, std::vector<Condition, std::allocator<Condition> >&&, std::vector<SetClause, std::allocator<SetClause> >&&)
+ 0.090   0.14   2.021   3.13   InsertExecutor::Next()
+ 0.090   0.14   0.670   1.04   Planner::do_planner(std::shared_ptr<Query>, Context*)
+ 0.090   0.14   0.290   0.45   Value* std::__do_uninit_copy<__gnu_cxx::__normal_iterator<Value const*, std::vector<Value, std::allocator<Value> > >, Value*>(__gnu_cxx::__normal_iterator<Value const*, std::vector<Value, std::allocator<Value> > >, __gnu_cxx::__normal_iterator<Value const*, std::vector<Value, std::allocator<Value> > >, Value*)
+ 0.090   0.14   0.480   0.74   Value::init_raw(int)
+ 0.090   0.14   0.240   0.37   std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_mutate(unsigned long, unsigned long, char const*, unsigned long)
+ 0.090   0.14   3.943   6.11   std::ostream::put(char)
+ 0.090   0.14   0.390   0.60   void std::vector<std::shared_ptr<ast::Value>, std::allocator<std::shared_ptr<ast::Value> > >::_M_realloc_insert<std::shared_ptr<ast::Value> const&>(__gnu_cxx::__normal_iterator<std::shared_ptr<ast::Value>*, std::vector<std::shared_ptr<ast::Value>, std::allocator<std::shared_ptr<ast::Value> > > >, std::shared_ptr<ast::Value> const&)
+ 0.080   0.12   0.100   0.16   <static>@0xba0fc (<libstdc++.so.6.0.33>)
+ 0.080   0.12   0.480   0.74   InsertExecutor::~InsertExecutor()
+ 0.080   0.12   0.080   0.12   std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_create(unsigned long&, unsigned long)
+ 0.080   0.12   0.080   0.12   std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&)
+ 0.070   0.11   0.510   0.79   LRUReplacer::pin(int)
+ 0.070   0.11   0.470   0.73   LRUReplacer::unpin(int)
+ 0.070   0.11   0.250   0.39   LogManager::add_log_to_buffer(LogRecord*)
+ 0.070   0.11   1.371   2.12   RmFileHandle::insert_record(char*, Context*)
+ 0.070   0.11   3.332   5.16   TransactionManager::begin(Transaction*, LogManager*)
+ 0.070   0.11   0.741   1.15   TransactionManager::commit(Transaction*, LogManager*)
+ 0.070   0.11   3.733   5.78   _IO_do_write
+ 0.070   0.11   0.070   0.11   std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_dispose()
+ 0.070   0.11   0.090   0.14   std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_replace(unsigned long, unsigned long, char const*, unsigned long)
+ 0.070   0.11   0.170   0.26   void std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_construct<char*>(char*, char*, std::forward_iterator_tag) [clone .isra.0]
+ 0.070   0.11   0.130   0.20   void std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >::_M_realloc_insert<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&>(__gnu_cxx::__normal_iterator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >*, std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+ 0.060   0.09   0.060   0.09   <static>@0x5890c (<libc.so.6>)
+ 0.060   0.09   0.060   0.09   <static>@0x98548 (<libc.so.6>)
+ 0.060   0.09   0.881   1.36   BufferPoolManager::fetch_page(PageId)
+ 0.060   0.09   0.771   1.19   Optimizer::plan_query(std::shared_ptr<Query>, Context*)
+ 0.060   0.09   2.282   3.53   SeqScanExecutor::beginTuple()
+ 0.060   0.09   0.060   0.09   fflush
+ 0.060   0.09   0.060   0.09   operator delete(void*)
+ 0.060   0.09   3.813   5.91   putc
+ 0.060   0.09   0.260   0.40   std::_Hashtable<PageId, std::pair<PageId const, int>, std::allocator<std::pair<PageId const, int> >, std::__detail::_Select1st, std::equal_to<PageId>, PageIdHash, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<true, false, true> >::find(PageId const&)
+ 0.060   0.09   0.070   0.11   std::_Hashtable<int, std::pair<int const, Transaction*>, std::allocator<std::pair<int const, Transaction*> >, std::__detail::_Select1st, std::equal_to<int>, std::hash<int>, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<false, false, true> >::_M_erase(std::integral_constant<bool, true>, int const&) [clone .isra.0]
+ 0.060   0.09   0.120   0.19   std::_Hashtable<int, std::pair<int const, std::_List_iterator<int> >, std::allocator<std::pair<int const, std::_List_iterator<int> > >, std::__detail::_Select1st, std::equal_to<int>, std::hash<int>, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<false, false, true> >::_M_erase(unsigned long, std::__detail::_Hash_node_base*, std::__detail::_Hash_node<std::pair<int const, std::_List_iterator<int> >, false>*)
+ 0.060   0.09   0.060   0.09   std::_Hashtable<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::unique_ptr<VersionChain, std::default_delete<VersionChain> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::unique_ptr<VersionChain, std::default_delete<VersionChain> > > >, std::__detail::_Select1st, std::equal_to<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::hash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<true, false, true> >::_M_rehash(unsigned long, unsigned long const&)
+ 0.060   0.09   1.521   2.36   std::__detail::_MakeUniq<InsertExecutor>::__single_object std::make_unique<InsertExecutor, SmManager*&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&, std::vector<Value, std::allocator<Value> >&, Context*&>(SmManager*&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&, std::vector<Value, std::allocator<Value> >&, Context*&)
+ 0.060   0.09   0.080   0.12   std::ostream::sentry::sentry(std::ostream&)
+ 0.060   0.09   0.130   0.20   std::shared_ptr<ast::InsertStmt>::shared_ptr<std::allocator<void>, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&, std::vector<std::shared_ptr<ast::Value>, std::allocator<std::shared_ptr<ast::Value> > >&>(std::_Sp_alloc_shared_tag<std::allocator<void> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&, std::vector<std::shared_ptr<ast::Value>, std::allocator<std::shared_ptr<ast::Value> > >&)
+ 0.050   0.08   0.050   0.08   BufferPoolManager::BufferPoolManager(unsigned long, DiskManager*)
+ 0.050   0.08   0.090   0.14   SnapshotManager::unregister_transaction(int)
+ 0.050   0.08   0.050   0.08   __gnu_cxx::stdio_sync_filebuf<char, std::char_traits<char> >::xsputn(char const*, long)
+ 0.050   0.08   0.050   0.08   std::_Hash_bytes(void const*, unsigned long, unsigned long)
+ 0.050   0.08   0.070   0.11   std::_Hashtable<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::__detail::_Identity, std::equal_to<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::hash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<true, true, true> >::clear()
+ 0.050   0.08   0.060   0.09   std::_Hashtable<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::vector<TabCol, std::allocator<TabCol> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::vector<TabCol, std::allocator<TabCol> > > >, std::__detail::_Select1st, std::equal_to<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::hash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<true, false, true> >::clear()
+ 0.050   0.08   3.993   6.19   std::basic_ostream<char, std::char_traits<char> >& std::endl<char, std::char_traits<char> >(std::basic_ostream<char, std::char_traits<char> >&) [clone .isra.0]
+ 0.050   0.08   0.050   0.08   std::num_put<char, std::ostreambuf_iterator<char, std::char_traits<char> > >::do_put(std::ostreambuf_iterator<char, std::char_traits<char> >, std::ios_base&, char, long) const
+ 0.050   0.08   0.150   0.23   std::ostream& std::ostream::_M_insert<long>(long)
+ 0.050   0.08   0.050   0.08   std::vector<ColMeta, std::allocator<ColMeta> >::~vector()
+ 0.040   0.06   0.680   1.05   BufferPoolManager::unpin_page(PageId, bool)
+ 0.040   0.06   0.040   0.06   __cxxabiv1::__class_type_info::__do_dyncast(long, __cxxabiv1::__class_type_info::__sub_kind, __cxxabiv1::__class_type_info const*, void const*, __cxxabiv1::__class_type_info const*, void const*, __cxxabiv1::__class_type_info::__dyncast_result&) const
+ 0.040   0.06   0.410   0.64   fwrite
+ 0.040   0.06   0.040   0.06   operator delete(void*, unsigned long)
+ 0.040   0.06   0.040   0.06   operator delete[](void*)
+ 0.040   0.06   0.110   0.17   std::_Sp_counted_ptr_inplace<DMLPlan, std::allocator<void>, (__gnu_cxx::_Lock_policy)2>::_M_dispose()
+ 0.040   0.06   0.040   0.06   std::_Sp_counted_ptr_inplace<ast::InsertStmt, std::allocator<void>, (__gnu_cxx::_Lock_policy)2>::_M_dispose()
+ 0.040   0.06   0.060   0.09   std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::operator=(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&) [clone .isra.0]
+ 0.040   0.06   0.040   0.06   std::__detail::_List_node_base::_M_unhook()
+ 0.040   0.06   0.060   0.09   std::__detail::_Prime_rehash_policy::_M_need_rehash(unsigned long, unsigned long, unsigned long) const
+ 0.040   0.06   0.490   0.76   std::basic_ostream<char, std::char_traits<char> >& std::__ostream_insert<char, std::char_traits<char> >(std::basic_ostream<char, std::char_traits<char> >&, char const*, long)
+ 0.040   0.06   0.050   0.08   yy_switch_to_buffer(yy_buffer_state*)
+ 0.030   0.05   0.030   0.05   <static>@0x4328 (<ld-linux-x86-64.so.2>)
+ 0.030   0.05   0.050   0.08   BufferPoolManager::update_page(Page*, PageId, int)
+ 0.030   0.05   0.190   0.29   ColMeta* std::__do_uninit_copy<__gnu_cxx::__normal_iterator<ColMeta const*, std::vector<ColMeta, std::allocator<ColMeta> > >, ColMeta*>(__gnu_cxx::__normal_iterator<ColMeta const*, std::vector<ColMeta, std::allocator<ColMeta> > >, __gnu_cxx::__normal_iterator<ColMeta const*, std::vector<ColMeta, std::allocator<ColMeta> > >, ColMeta*)
+ 0.030   0.05   2.051   3.18   QlManager::run_dml(std::unique_ptr<AbstractExecutor, std::default_delete<AbstractExecutor> >)
+ 0.030   0.05   0.640   0.99   RmScan::next()
+ 0.030   0.05   2.972   4.60   SeqScanExecutor::nextTuple()
+ 0.030   0.05   2.832   4.39   Transaction::Transaction(int, IsolationLevel)
+ 0.030   0.05   3.753   5.81   _IO_file_overflow
+ 0.030   0.05   3.763   5.83   _IO_file_write
+ 0.030   0.05   0.080   0.12   _Unwind_Find_FDE
+ 0.030   0.05   0.030   0.05   __gnu_cxx::stdio_sync_filebuf<char, std::char_traits<char> >::sync()
+ 0.030   0.05   0.040   0.06   std::_Hashtable<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::vector<Condition, std::allocator<Condition> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::vector<Condition, std::allocator<Condition> > > >, std::__detail::_Select1st, std::equal_to<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::hash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<true, false, true> >::clear()
+ 0.030   0.05   0.030   0.05   std::_Sp_counted_base<(__gnu_cxx::_Lock_policy)2>::_M_add_ref_copy()
+ 0.030   0.05   0.030   0.05   std::_Sp_counted_ptr_inplace<ast::IntLit, std::allocator<void>, (__gnu_cxx::_Lock_policy)2>::_M_dispose()
+ 0.030   0.05   0.030   0.05   std::_Sp_counted_ptr_inplace<ast::StringLit, std::allocator<void>, (__gnu_cxx::_Lock_policy)2>::_M_dispose()
+ 0.030   0.05   0.070   0.11   std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_construct(unsigned long, char)
+ 0.030   0.05   0.030   0.05   std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::reserve(unsigned long)
+ 0.030   0.05   0.070   0.11   std::ostreambuf_iterator<char, std::char_traits<char> > std::num_put<char, std::ostreambuf_iterator<char, std::char_traits<char> > >::_M_insert_int<long>(std::ostreambuf_iterator<char, std::char_traits<char> >, std::ios_base&, char, long) const
+ 0.030   0.05   0.670   1.04   std::vector<ColMeta, std::allocator<ColMeta> >::operator=(std::vector<ColMeta, std::allocator<ColMeta> > const&) [clone .isra.0]
+ 0.030   0.05   0.030   0.05   std::vector<Condition, std::allocator<Condition> >::~vector()
+ 0.030   0.05   0.030   0.05   std::vector<std::shared_ptr<ast::Value>, std::allocator<std::shared_ptr<ast::Value> > >::~vector()
+ 0.030   0.05   0.100   0.16   void std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_construct<char*>(char*, char*, std::forward_iterator_tag)
+ 0.020   0.03   0.030   0.05   <static>@0x23946 (<libgcc_s.so.1>)
+ 0.020   0.03   0.060   0.09   AbstractExecutor::eval_cond(std::vector<ColMeta, std::allocator<ColMeta> > const&, Condition const&, RmRecord const*)
+ 0.020   0.03   0.030   0.05   DbMeta::get_table(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+ 0.020   0.03   0.020   0.03   DiskManager::allocate_page(int)
+ 0.020   0.03   0.901   1.40   RmFileHandle::fetch_page_handle(int) const
+ 0.020   0.03   3.352   5.19   SetTransaction(int*, Context*)
+ 0.020   0.03   0.480   0.74   _IO_file_fopen
+ 0.020   0.03   0.020   0.03   operator new[](unsigned long)
+ 0.020   0.03   0.020   0.03   pthread_self
+ 0.020   0.03   0.030   0.05   std::_Hashtable<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, IndexMeta>, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, IndexMeta> >, std::__detail::_Select1st, std::equal_to<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::hash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<true, false, true> >::clear()
+ 0.020   0.03   0.030   0.05   std::_Hashtable<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::unique_ptr<RmFileHandle, std::default_delete<RmFileHandle> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::unique_ptr<RmFileHandle, std::default_delete<RmFileHandle> > > >, std::__detail::_Select1st, std::equal_to<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::hash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<true, false, true> >::find(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+ 0.020   0.03   0.020   0.03   std::_Sp_counted_ptr_inplace<PortalStmt, std::allocator<void>, (__gnu_cxx::_Lock_policy)2>::_M_destroy()
+ 0.020   0.03   0.020   0.03   std::_Sp_counted_ptr_inplace<PortalStmt, std::allocator<void>, (__gnu_cxx::_Lock_policy)2>::_M_dispose()
+ 0.020   0.03   0.020   0.03   std::_Sp_counted_ptr_inplace<RmRecord, std::allocator<void>, (__gnu_cxx::_Lock_policy)2>::_M_destroy()
+ 0.020   0.03   0.020   0.03   std::_Sp_counted_ptr_inplace<RmRecord, std::allocator<void>, (__gnu_cxx::_Lock_policy)2>::_M_dispose()
+ 0.020   0.03   0.020   0.03   std::_Sp_counted_ptr_inplace<ast::IntLit, std::allocator<void>, (__gnu_cxx::_Lock_policy)2>::_M_destroy()
+ 0.020   0.03   0.030   0.05   std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::operator=(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&) [clone .isra.0]
+ 0.020   0.03   0.020   0.03   std::__detail::_List_node_base::_M_hook(std::__detail::_List_node_base*)
+ 0.020   0.03   0.020   0.03   std::__detail::_Prime_rehash_policy::_M_next_bkt(unsigned long) const
+ 0.020   0.03   0.490   0.76   std::__shared_count<(__gnu_cxx::_Lock_policy)2>::operator=(std::__shared_count<(__gnu_cxx::_Lock_policy)2> const&) [clone .isra.0]
+ 0.020   0.03   0.670   1.04   std::basic_filebuf<char, std::char_traits<char> >::close()
+ 0.020   0.03   0.020   0.03   std::unique_ptr<AbstractExecutor, std::default_delete<AbstractExecutor> >::~unique_ptr()
+ 0.020   0.03   0.020   0.03   std::vector<SetClause, std::allocator<SetClause> >::~vector()
+ 0.020   0.03   0.070   0.11   std::vector<Value, std::allocator<Value> >::~vector()
+ 0.020   0.03   0.060   0.09   void std::_Hashtable<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, IndexMeta>, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, IndexMeta> >, std::__detail::_Select1st, std::equal_to<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::hash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<true, false, true> >::_M_assign_elements<std::_Hashtable<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, IndexMeta>, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, IndexMeta> >, std::__detail::_Select1st, std::equal_to<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::hash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<true, false, true> > const&>(std::_Hashtable<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, IndexMeta>, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, IndexMeta> >, std::__detail::_Select1st, std::equal_to<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::hash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<true, false, true> > const&)
+ 0.020   0.03   0.100   0.16   void std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_construct<char*>(char*, char*, std::forward_iterator_tag) [clone .isra.0]
+ 0.010   0.02   0.010   0.02   <static>@0x283e0 (<libc.so.6>)
+ 0.010   0.02   0.010   0.02   <static>@0x98fb9 (<libc.so.6>)
+ 0.010   0.02   0.020   0.03   <static>@0xb52f9 (<libc.so.6>)
+ 0.010   0.02   0.010   0.02   <static>@0xe984f (<libstdc++.so.6.0.33>)
+ 0.010   0.02   0.010   0.02   BeginLogRecord::serialize(char*) const
+ 0.010   0.02   0.010   0.02   CommitLogRecord::serialize(char*) const
+ 0.010   0.02   0.010   0.02   InsertLogRecord::serialize(char*) const
+ 0.010   0.02   0.010   0.02   OptimizedAggregationExecutor::update_streaming_agg_state(RmRecord const*, std::vector<int, std::allocator<int> >&, std::vector<int, std::allocator<int> >&, std::vector<float, std::allocator<float> >&, std::vector<Value, std::allocator<Value> >&, std::vector<Value, std::allocator<Value> >&, std::vector<bool, std::allocator<bool> >&)
+ 0.010   0.02   4.343   6.73   Portal::start(std::shared_ptr<Plan>, Context*)
+ 0.010   0.02   0.010   0.02   RmScan::is_end() const
+ 0.010   0.02   0.010   0.02   RmScan::rid() const
+ 0.010   0.02   0.010   0.02   Value::~Value()
+ 0.010   0.02   0.010   0.02   _IO_link_in
+ 0.010   0.02   0.010   0.02   _Unwind_GetCFA
+ 0.010   0.02   0.010   0.02   _Unwind_GetRegionStart
+ 0.010   0.02   0.010   0.02   __cxa_allocate_exception
+ 0.010   0.02   0.010   0.02   __cxa_end_catch
+ 0.010   0.02   0.010   0.02   __cxxabiv1::__si_class_type_info::__do_upcast(__cxxabiv1::__class_type_info const*, void const*, __cxxabiv1::__class_type_info::__upcast_result&) const
+ 0.010   0.02   0.010   0.02   __gnu_cxx::stdio_sync_filebuf<char, std::char_traits<char> >::overflow(int)
+ 0.010   0.02   0.120   0.19   __gxx_personality_v0
+ 0.010   0.02   0.010   0.02   __overflow
+ 0.010   0.02   1.801   2.79   client_handler(void*) [clone .cold]
+ 0.010   0.02   0.010   0.02   fileno
+ 0.010   0.02   0.500   0.78   fopen
+ 0.010   0.02   0.010   0.02   fsync
+ 0.010   0.02   0.010   0.02   lseek
+ 0.010   0.02   1.691   2.62   std::_Deque_base<Page*, std::allocator<Page*> >::_M_initialize_map(unsigned long)
+ 0.010   0.02   0.070   0.11   std::_Hashtable<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::__detail::_Identity, std::equal_to<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::hash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<true, true, true> >::_M_rehash(unsigned long, unsigned long const&)
+ 0.010   0.02   0.010   0.02   std::_Sp_counted_ptr_inplace<Query, std::allocator<void>, (__gnu_cxx::_Lock_policy)2>::_M_dispose()
+ 0.010   0.02   0.010   0.02   std::_Sp_counted_ptr_inplace<ast::StringLit, std::allocator<void>, (__gnu_cxx::_Lock_policy)2>::_M_destroy()
+ 0.010   0.02   0.010   0.02   std::__basic_file<char>::__basic_file(pthread_mutex_t*)
+ 0.010   0.02   0.140   0.22   std::__basic_file<char>::close()
+ 0.010   0.02   0.010   0.02   std::__basic_file<char>::fd()
+ 0.010   0.02   0.510   0.79   std::__basic_file<char>::open(char const*, std::_Ios_Openmode, int)
+ 0.010   0.02   0.010   0.02   std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+ 0.010   0.02   0.520   0.81   std::basic_filebuf<char, std::char_traits<char> >::overflow(int)
+ 0.010   0.02   0.010   0.02   std::basic_filebuf<char, std::char_traits<char> >::xsputn(char const*, long)
+ 0.010   0.02   0.710   1.10   std::basic_fstream<char, std::char_traits<char> >::open(char const*, std::_Ios_Openmode)
+ 0.010   0.02   0.180   0.28   std::basic_ostream<char, std::char_traits<char> >& std::operator<< <std::char_traits<char> >(std::basic_ostream<char, std::char_traits<char> >&, char const*)
+ 0.010   0.02   0.020   0.03   std::basic_streambuf<char, std::char_traits<char> >::xsputn(char const*, long)
+ 0.010   0.02   0.010   0.02   std::enable_if<std::__sp_compatible_with<DMLPlan*, Plan*>::value, std::__shared_ptr<Plan, (__gnu_cxx::_Lock_policy)2>&>::type std::__shared_ptr<Plan, (__gnu_cxx::_Lock_policy)2>::operator=<DMLPlan>(std::__shared_ptr<DMLPlan, (__gnu_cxx::_Lock_policy)2>&&) [clone .isra.0]
+ 0.010   0.02   0.010   0.02   std::ios_base::_M_call_callbacks(std::ios_base::event)
+ 0.010   0.02   0.010   0.02   std::ios_base::ios_base()
+ 0.010   0.02   0.010   0.02   std::locale::id::_M_id() const
+ 0.010   0.02   0.110   0.17   std::ostream::flush()
+ 0.010   0.02   0.010   0.02   std::vector<TabCol, std::allocator<TabCol> >::~vector()
+ 0.010   0.02   0.010   0.02   std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >::push_back(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+ 0.010   0.02   0.010   0.02   void std::_Hashtable<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, IndexMeta>, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, IndexMeta> >, std::__detail::_Select1st, std::equal_to<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::hash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<true, false, true> >::_M_assign<std::_Hashtable<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, IndexMeta>, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, IndexMeta> >, std::__detail::_Select1st, std::equal_to<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::hash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<true, false, true> > const&, std::__detail::_ReuseOrAllocNode<std::allocator<std::__detail::_Hash_node<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, IndexMeta>, true> > > >(std::_Hashtable<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, IndexMeta>, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, IndexMeta> >, std::__detail::_Select1st, std::equal_to<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::hash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<true, false, true> > const&, std::__detail::_ReuseOrAllocNode<std::allocator<std::__detail::_Hash_node<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, IndexMeta>, true> > > const&)
+ 0.010   0.02   0.030   0.05   void std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_construct<char*>(char*, char*, std::forward_iterator_tag) [clone .isra.0]
+ 0.010   0.02   0.010   0.02   void std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_construct<char*>(char*, char*, std::forward_iterator_tag) [clone .isra.0]
+ 0.010   0.02   0.010   0.02   yyensure_buffer_stack()
+ 0.      0.     0.010   0.02   <static>@0x142062 (<libstdc++.so.6.0.33>)
+ 0.      0.     0.020   0.03   <static>@0x2a145 (<libc.so.6>)
+ 0.      0.     0.010   0.02   <static>@0x9183f (<libc.so.6>)
+ 0.      0.     0.010   0.02   <static>@0xbb287 (<libstdc++.so.6.0.33>)
+ 0.      0.     0.040   0.06   AbstractExecutor::get_col(std::vector<ColMeta, std::allocator<ColMeta> > const&, TabCol const&) [clone .isra.0]
+ 0.      0.     0.020   0.03   BufferPoolManager::flush_all_pages(int)
+ 0.      0.     0.070   0.11   BufferPoolManager::new_page(PageId*)
+ 0.      0.     0.010   0.02   DiskManager::sync_file(int)
+ 0.      0.     0.090   0.14   DiskManager::write_log(char*, int)
+ 0.      0.     0.010   0.02   DiskManager::write_page(int, int, char const*, int)
+ 0.      0.     0.010   0.02   InvalidValueCountError::~InvalidValueCountError()
+ 0.      0.     0.100   0.16   LogManager::flush_log_to_disk()
+ 0.      0.     0.010   0.02   MVCCExecutorBase::get_record_mvcc(RmFileHandle*, Rid const&, Context*, SmManager*) [clone .isra.0]
+ 0.      0.     0.020   0.03   MVCCManager::cleanup_read_sets(Transaction*)
+ 0.      0.     0.160   0.25   MVCCManager::create_version_chain_nolock(Rid const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+ 0.      0.     2.252   3.49   OptimizedAggregationExecutor::beginTuple()
+ 0.      0.     1.241   1.92   OptimizedAggregationExecutor::compute_streaming_aggregation()
+ 0.      0.     0.020   0.03   Planner::generate_select_plan(std::shared_ptr<Query>, Context*)
+ 0.      0.     0.020   0.03   Planner::get_index_cols(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::vector<Condition, std::allocator<Condition> >, std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >&)
+ 0.      0.     0.020   0.03   Planner::make_one_rel(std::shared_ptr<Query>)
+ 0.      0.     0.020   0.03   Planner::physical_optimization(std::shared_ptr<Query>, Context*)
+ 0.      0.     3.332   5.16   QlManager::run_cmd_utility(std::shared_ptr<Plan>, int*, Context*)
+ 0.      0.     2.482   3.84   QlManager::select_from(std::unique_ptr<AbstractExecutor, std::default_delete<AbstractExecutor> >, std::vector<TabCol, std::allocator<TabCol> >, Context*)
+ 0.      0.     0.070   0.11   RmFileHandle::create_new_page_handle()
+ 0.      0.     0.090   0.14   RmFileHandle::get_record(Rid const&, Context*) const
+ 0.      0.     0.020   0.03   RmManager::close_file(RmFileHandle const*)
+ 0.      0.     0.010   0.02   SeqScanExecutor::Next()
+ 0.      0.     0.020   0.03   SmManager::close_db()
+ 0.      0.     0.020   0.03   TPCCOptimizer::get_tpcc_patterns[abi:cxx11]()
+ 0.      0.     0.020   0.03   TPCCOptimizer::optimize_tpcc_index_selection(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<Condition, std::allocator<Condition> > const&, std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >&)
+ 0.      0.     0.020   0.03   TabMeta::~TabMeta()
+ 0.      0.     3.362   5.21   TransactionManager::abort(Transaction*, LogManager*)
+ 0.      0.     0.050   0.08   _GLOBAL__sub_I_disk_manager
+ 0.      0.     0.130   0.20   _IO_file_close_it
+ 0.      0.     0.440   0.68   _IO_file_open
+ 0.      0.     0.250   0.39   _Unwind_RaiseException
+ 0.      0.     0.120   0.19   _Unwind_Resume
+ 0.      0.     0.250   0.39   __cxa_throw
+ 0.      0.     0.010   0.02   __cxxabiv1::__class_type_info::__do_upcast(__cxxabiv1::__class_type_info const*, void**) const
+ 0.      0.     0.070   0.11   __libc_start_main
+ 0.      0.     0.130   0.20   fclose
+ 0.      0.     0.020   0.03   main
+ 0.      0.     0.020   0.03   start_server()
+ 0.      0.     0.500   0.78   std::__basic_file<char>::xsputn(char const*, long)
+ 0.      0.     0.010   0.02   std::__basic_file<char>::~__basic_file()
+ 0.      0.     0.010   0.02   std::__detail::_Map_base<PageId, std::pair<PageId const, int>, std::allocator<std::pair<PageId const, int> >, std::__detail::_Select1st, std::equal_to<PageId>, PageIdHash, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<true, false, true>, true>::operator[](PageId const&)
+ 0.      0.     0.010   0.02   std::__detail::_Map_base<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, TPCCOptimizer::TPCCQueryPattern>, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, TPCCOptimizer::TPCCQueryPattern> >, std::__detail::_Select1st, std::equal_to<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::hash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<true, false, true>, true>::operator[](std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&)
+ 0.      0.     0.090   0.14   std::__detail::_Map_base<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::unique_ptr<VersionChain, std::default_delete<VersionChain> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::unique_ptr<VersionChain, std::default_delete<VersionChain> > > >, std::__detail::_Select1st, std::equal_to<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::hash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<true, false, true>, true>::operator[](std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+ 0.      0.     0.180   0.28   std::basic_filebuf<char, std::char_traits<char> >::_M_allocate_internal_buffer()
+ 0.      0.     0.510   0.79   std::basic_filebuf<char, std::char_traits<char> >::_M_convert_to_external(char*, long)
+ 0.      0.     0.520   0.81   std::basic_filebuf<char, std::char_traits<char> >::_M_terminate_output()
+ 0.      0.     0.010   0.02   std::basic_filebuf<char, std::char_traits<char> >::basic_filebuf()
+ 0.      0.     0.700   1.09   std::basic_filebuf<char, std::char_traits<char> >::open(char const*, std::_Ios_Openmode)
+ 0.      0.     0.030   0.05   std::basic_fstream<char, std::char_traits<char> >::basic_fstream()
+ 0.      0.     0.660   1.02   std::basic_fstream<char, std::char_traits<char> >::close()
+ 0.      0.     0.010   0.02   std::basic_fstream<char, std::char_traits<char> >::~basic_fstream()
+ 0.      0.     0.010   0.02   std::locale::locale()
+ 0.      0.     0.010   0.02   std::shared_ptr<PortalStmt>::shared_ptr<std::allocator<void>, portalTag, std::vector<TabCol, std::allocator<TabCol> >, std::unique_ptr<AbstractExecutor, std::default_delete<AbstractExecutor> >, std::shared_ptr<Plan>&>(std::_Sp_alloc_shared_tag<std::allocator<void> >, portalTag&&, std::vector<TabCol, std::allocator<TabCol> >&&, std::unique_ptr<AbstractExecutor, std::default_delete<AbstractExecutor> >&&, std::shared_ptr<Plan>&)
+ 0.      0.     0.010   0.02   std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >::vector<char const* const*, void>(char const* const*, char const* const*, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > const&) [clone .constprop.0]
+ 0.      0.     0.040   0.06   yy_delete_buffer(yy_buffer_state*)
+ 0.      0.     0.120   0.19   yy_scan_buffer(char*, unsigned long)
+ 0.      0.     0.140   0.22   yy_scan_bytes(char const*, int)
+ 0.      0.     0.020   0.03   yy_scan_string(char const*)
+
+(x86_64-linux-gnu-gp-display-text) 

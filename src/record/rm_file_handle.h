@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/context.h"
 #include "common/performance_utils.h"
 #include "rm_defs.h"
+#include "mvcc_map.h"
 
 class RmManager;
 
@@ -57,6 +58,7 @@ private:
     mutable std::mutex latch_;
     int fd_;             // 打开文件后产生的文件句柄
     RmFileHdr file_hdr_; // 文件头，维护当前表文件的元数据
+    MvccMap mvcc_map_;   // per-file MVCC map（提交后erase，热路径零开销）
 
 public:
     RmFileHandle(DiskManager *disk_manager, BufferPoolManager *buffer_pool_manager, int fd)
@@ -75,6 +77,22 @@ public:
     int GetFd() { return fd_; }
 
     BufferPoolManager* get_bpm() { return buffer_pool_manager_; }
+
+    // MVCC 可见性检查（per-file，已提交记录零开销）
+    bool visit(const Rid &rid, txn_id_t txn_id) {
+        int slot = rid.page_no * file_hdr_.num_records_per_page + rid.slot_no;
+        return mvcc_map_.visit_record(slot, txn_id) == RCInfo::RC_SUCCESS;
+    }
+
+    // 事务提交/回滚时清除 mvcc_map_ 中的条目
+    // type: 0=insert, 1=delete, 2=update
+    void commit_mvcc(int type, const Rid &rid, txn_id_t txn_id) {
+        int slot = rid.page_no * file_hdr_.num_records_per_page + rid.slot_no;
+        if (type == 1)
+            mvcc_map_.commit_delete(slot, txn_id);
+        else
+            mvcc_map_.commit_insert(slot, txn_id);
+    }
     /* 判断指定位置上是否已经存在一条记录，通过Bitmap来判断 */
     bool is_record(const Rid &rid) const
     {

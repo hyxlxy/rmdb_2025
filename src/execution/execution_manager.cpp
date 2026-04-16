@@ -24,6 +24,15 @@ See the Mulan PSL v2 for more details. */
 
 bool output_file_enabled = true; // 控制是否向output.txt写入，默认开启
 
+// 持久化输出文件句柄，避免每次查询都open/close
+static FILE* g_output_file = nullptr;
+static FILE* get_output_file() {
+    if (!g_output_file) {
+        g_output_file = fopen("output.txt", "a");
+    }
+    return g_output_file;
+}
+
 const char *help_info = "Supported SQL syntax:\n"
                         "  command ;\n"
                         "command:\n"
@@ -226,10 +235,8 @@ void QlManager::run_cmd_utility(std::shared_ptr<Plan> plan, txn_id_t *txn_id, Co
 
         if (output_file_enabled)
         {
-            std::fstream outfile;
-            outfile.open("output.txt", std::ios::out | std::ios::app);
-            outfile << plan_str;
-            outfile.close();
+            FILE* f = get_output_file();
+            if (f) fwrite(plan_str.data(), 1, plan_str.size(), f);
         }
     }
 }
@@ -260,17 +267,16 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
     rec_printer.print_separator(context);
     rec_printer.print_record(captions, context);
     rec_printer.print_separator(context);
-    // 只在开启时写入 output.txt
-    std::fstream outfile;
+
+    // 用 string 攒所有行，最后一次 write() 写入 output.txt
+    std::string out_buf;
     if (output_file_enabled)
     {
-        outfile.open("output.txt", std::ios::out | std::ios::app);
-        outfile << "|";
+        out_buf.reserve(4096);
+        out_buf += "|";
         for (size_t i = 0; i < captions.size(); ++i)
-        {
-            outfile << " " << captions[i] << " |";
-        }
-        outfile << "\n";
+            out_buf += " " + captions[i] + " |";
+        out_buf += "\n";
     }
 
     // Print records
@@ -301,22 +307,22 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
             }
             // print record into buffer
             rec_printer.print_record(columns, context);
-            // 只在开启时写入 output.txt
+            // 攒到 out_buf，不逐行 write
             if (output_file_enabled)
             {
-                outfile << "|";
+                out_buf += "|";
                 for (size_t i = 0; i < columns.size(); ++i)
-                {
-                    outfile << " " << columns[i] << " |";
-                }
-                outfile << "\n";
+                    out_buf += " " + columns[i] + " |";
+                out_buf += "\n";
             }
             num_rec++;
         }
 
-        if (output_file_enabled)
+        // 一次性写入 output.txt（使用持久化文件句柄，避免每次open/close）
+        if (output_file_enabled && !out_buf.empty())
         {
-            outfile.close();
+            FILE* f = get_output_file();
+            if (f) fwrite(out_buf.data(), 1, out_buf.size(), f);
         }
         // Print footer into buffer
         rec_printer.print_separator(context);
@@ -371,9 +377,11 @@ void QlManager::run_load(const std::shared_ptr<Plan> &plan, Context *context)
     {
         if (output_file_enabled)
         {
-            std::ofstream outfile("output.txt", std::ios::out | std::ios::app);
-            outfile << "Load failed: " << load_plan->file_name << " into " << load_plan->table_name << ", reason: " << e.what() << std::endl;
-            outfile.close();
+            FILE* f = get_output_file();
+            if (f) {
+                std::string msg = "Load failed: " + load_plan->file_name + " into " + load_plan->table_name + ", reason: " + e.what() + "\n";
+                fwrite(msg.data(), 1, msg.size(), f);
+            }
         }
         throw RMDBError("Load failed: " + load_plan->file_name + " into " + load_plan->table_name + ", reason: " + e.what());
     }

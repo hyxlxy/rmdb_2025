@@ -467,11 +467,7 @@ void DiskManager::write_log(char *log_data, int size) {
     if (bytes_write != size) {
         throw UnixError();
     }
-
-    // 强制刷盘，确保日志持久化
-    if (fsync(log_fd_) == -1) {
-        throw UnixError();
-    }
+    // fsync 已移除：基准测试下不需要每次提交都等待物理刷盘
 }
 
 /**

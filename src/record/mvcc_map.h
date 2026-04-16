@@ -94,6 +94,7 @@ public:
                 return (-xmax!=id)?RCInfo::RC_LOCKED_CONFLICT:RCInfo::RC_RECORD_INVISIBLE;
             }
         }
+        return RCInfo::RC_SUCCESS; // xmin==0, xmax==0: 正常已提交记录
     }
 
     // 插入记录（版本链管理）
